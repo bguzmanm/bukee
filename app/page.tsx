@@ -16,19 +16,35 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
 
-  const { books, loading, error, addBook, updateBook, deleteBook } = useBooks();
+  const { books, tags, authors, loading, error, addBook, updateBook, deleteBook } = useBooks();
 
   const filteredBooks = useMemo(() => {
     return books.filter((b) => {
-      const q = search.toLowerCase();
-      return (
-        b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q) ||
-        b.tags.some((t) => t.toLowerCase().includes(q))
-      );
+      const matchesSearch = (() => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+          b.title.toLowerCase().includes(q) ||
+          b.author.toLowerCase().includes(q) ||
+          b.tags.some((t) => t.toLowerCase().includes(q))
+        );
+      })();
+
+      const matchesTag = selectedTag 
+        ? b.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase())
+        : true;
+      
+      const matchesAuthor = selectedAuthor
+        ? b.author.toLowerCase() === selectedAuthor.toLowerCase()
+        : true;
+
+      return matchesSearch && matchesTag && matchesAuthor;
     });
-  }, [books, search]);
+  }, [books, search, selectedTag, selectedAuthor]);
 
   const handleCreate = () => {
     setEditingBook(null);
@@ -50,7 +66,6 @@ export default function Home() {
   const handleFormSubmit = async (data: Book | Omit<Book, "id">) => {
     if ("id" in data) {
       await updateBook(data as Book);
-      // Update selected book if it's the one being edited
       if (selectedBook?.id === data.id) {
         setSelectedBook(data as Book);
       }
@@ -75,13 +90,13 @@ export default function Home() {
       )}
 
       <div
-        className="grid h-full"
+        className="grid h-full transition-all duration-300"
         style={{
-          gridTemplateColumns: "250px 1fr",
+          gridTemplateColumns: "auto 1fr",
           gridTemplateRows: "60px 1fr 260px",
         }}
       >
-        <header className="col-span-3 flex items-center gap-3 px-4 bg-card border-b">
+        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b">
           <div className="flex items-center gap-2">
             <button 
               onClick={handleCreate}
@@ -123,7 +138,16 @@ export default function Home() {
           />
         </header>
 
-        <Sidebar />
+        <Sidebar 
+          isCollapsed={isSidebarCollapsed} 
+          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          tags={tags}
+          authors={authors}
+          selectedTag={selectedTag}
+          selectedAuthor={selectedAuthor}
+          onSelectTag={setSelectedTag}
+          onSelectAuthor={setSelectedAuthor}
+        />
 
         <main className="overflow-auto">
           {loading && <p className="p-6">Loading books...</p>}

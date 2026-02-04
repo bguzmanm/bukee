@@ -51,6 +51,39 @@ export const BookRepository = {
     }));
   },
 
+  async getTagsWithCounts(): Promise<Record<string, number>> {
+    const db = await getDb();
+    const result: { tags: string }[] = await db.select("SELECT tags FROM books WHERE tags != ''");
+    
+    const tagCounts: Record<string, number> = {};
+    
+    result.forEach(row => {
+      const tags = row.tags.split(',');
+      tags.forEach(tag => {
+        const trimmedTag = tag.trim();
+        if (trimmedTag) {
+          tagCounts[trimmedTag] = (tagCounts[trimmedTag] || 0) + 1;
+        }
+      });
+    });
+
+    return tagCounts;
+  },
+
+  async getAuthorsWithCounts(): Promise<Record<string, number>> {
+    const db = await getDb();
+    const result: { author: string, count: number }[] = await db.select(
+      "SELECT author, COUNT(*) as count FROM books GROUP BY author"
+    );
+    
+    const authorCounts: Record<string, number> = {};
+    result.forEach(row => {
+      authorCounts[row.author] = row.count;
+    });
+    
+    return authorCounts;
+  },
+
   async create(book: Omit<Book, "id">): Promise<void> {
     const db = await getDb();
     const tagsString = book.tags.join(",");
