@@ -96,7 +96,7 @@ export default function Home() {
           gridTemplateRows: "60px 1fr 260px",
         }}
       >
-        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b">
+        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b pr-20">
           <div className="flex items-center gap-2">
             <button 
               onClick={handleCreate}
