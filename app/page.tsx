@@ -201,7 +201,7 @@ export default function Home() {
                 {filtered.map((book) => (
                   <tr
                     key={book.id}
-                    className="hover:bg-neutral-50 cursor-pointer"
+                    className="hover:bg-neutral-50 cursor-pointer hover:text-black"
                     onClick={() => setSelectedBook(book)}
                   >
                     <td className="px-4 py-3">
@@ -212,13 +212,13 @@ export default function Home() {
                         className="w-[50px] h-[70px] rounded-md object-cover"
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium hover:text-black">
+                    <td className="px-4 py-3 font-medium">
                       {book.title}
                     </td>
-                    <td className="px-4 py-3 hover:text-black">
+                    <td className="px-4 py-3">
                       {book.author}
                     </td>
-                    <td className="px-4 py-3 hover:text-black">
+                    <td className="px-4 py-3">
                       {"★".repeat(book.rating)}
                       {"☆".repeat(5 - book.rating)}
                     </td>
