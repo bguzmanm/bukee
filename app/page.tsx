@@ -1,7 +1,8 @@
 "use client";
 
 import { ModeToggle } from "@/components/mode-toggle";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Database from "@tauri-apps/plugin-sql";
 
 type Book = {
   id: number;
@@ -10,41 +11,44 @@ type Book = {
   cover: string;
   tags: string[];
   rating: number;
+  path: string;
 };
-
-const mockBooks: Book[] = [
-  {
-    id: 1,
-    title: "Fundación",
-    author: "Isaac Asimov",
-    cover: "/covers/fundacion.jpg",
-    tags: ["sci-fi", "clásico"],
-    rating: 5,
-  },
-  {
-    id: 2,
-    title: "Harry Potter y la piedra filosofal",
-    author: "J.K. Rowling",
-    cover: "/covers/hp1.jpg",
-    tags: ["fantasía"],
-    rating: 4,
-  },
-  {
-    id: 3,
-    title: "Proyecto Hail Mary",
-    author: "Andy Weir",
-    cover: "/covers/hailmary.jpg",
-    tags: ["sci-fi"],
-    rating: 4,
-  }
-];
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [selectedBook, setSelectedBook] = useState<Book | null>(mockBooks[0]);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [search, setSearch] = useState("");
+  const [books, setBooks] = useState<Book[]>([]);
 
-  const filtered = mockBooks.filter((b) => {
+  useEffect(() => {
+    const initDb = async () => {
+      try {
+        const db = await Database.load("sqlite:bukee.db");
+        // Insert mock data if empty (optional, for testing)
+        const count: any[] = await db.select("SELECT COUNT(*) as count FROM books");
+        if (count[0].count === 0) {
+           await db.execute("INSERT INTO books (title, author, cover, tags, rating, path) VALUES ($1, $2, $3, $4, $5, $6)", ["Fundación", "Isaac Asimov", "/covers/fundacion.jpg", "sci-fi,clásico", 5, '/books/fundacion.epub']);
+           await db.execute("INSERT INTO books (title, author, cover, tags, rating, path) VALUES ($1, $2, $3, $4, $5, $6)", ["Harry Potter y la piedra filosofal", "J.K. Rowling", "/covers/hp1.jpg", "fantasía", 4, '/books/hp1.epub']);
+           await db.execute("INSERT INTO books (title, author, cover, tags, rating, path) VALUES ($1, $2, $3, $4, $5, $6)", ["Proyecto Hail Mary", "Andy Weir", "/covers/hail-mary.jpg", "sci-fi", 4, "/books/hail-mary.epub"]);
+        }
+
+        const result: any[] = await db.select("SELECT title, author, cover, tags, rating, path FROM books");
+        const loadedBooks = result.map((row) => ({
+            ...row,
+            tags: row.tags ? row.tags.split(",") : []
+        }));
+        setBooks(loadedBooks);
+        if (loadedBooks.length > 0) {
+            setSelectedBook(loadedBooks[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load database:", error);
+      }
+    };
+    initDb();
+  }, []);
+
+  const filtered = books.filter((b) => {
     const q = search.toLowerCase();
     return (
       b.title.toLowerCase().includes(q) ||
@@ -260,6 +264,9 @@ export default function Home() {
                 <p className="text-sm mb-2">
                   <span className="font-semibold">Tags:</span>{" "}
                   {selectedBook.tags.join(", ")}
+                </p>
+                <p className="text-sm mb-2">
+                  <a className="font-semibold" href={selectedBook.path} target="_blank" rel="noreferrer">EPUB</a>
                 </p>
                 <p className="text-sm text-neutral-600 mt-3">
                   Comentarios: aquí irían notas, sinopsis, etc.
