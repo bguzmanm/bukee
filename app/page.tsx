@@ -9,6 +9,7 @@ import { BookList } from "@/components/BookList";
 import { BookDetails } from "@/components/BookDetails";
 import { Sidebar } from "@/components/Sidebar";
 import { BookForm } from "@/components/BookForm";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -81,13 +82,22 @@ export default function Home() {
         <ModeToggle />
       </div>
       
-      {isFormOpen && (
-        <BookForm
-          initialData={editingBook}
-          onSubmit={handleFormSubmit}
-          onCancel={() => setIsFormOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isFormOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50"
+          >
+            <BookForm
+              initialData={editingBook}
+              onSubmit={handleFormSubmit}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         className="grid h-full transition-all duration-300"
@@ -96,7 +106,7 @@ export default function Home() {
           gridTemplateRows: "60px 1fr 260px",
         }}
       >
-        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b pr-20">
+        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b">
           <div className="flex items-center gap-2">
             <button 
               onClick={handleCreate}
@@ -108,20 +118,20 @@ export default function Home() {
 
           <div className="ml-auto flex gap-2">
             <button
-              className={`px-3 py-1.5 rounded-full text-sm border-2 ${
+              className={`px-3 py-1.5 rounded-full text-sm border-2 transition-colors ${
                 view === "grid"
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted text-muted-foreground border-transparent"
+                  : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
               }`}
               onClick={() => setView("grid")}
             >
               Grid
             </button>
             <button
-              className={`px-3 py-1.5 rounded-full text-sm border-2 ${
+              className={`px-3 py-1.5 rounded-full text-sm border-2 transition-colors ${
                 view === "list"
                   ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted text-muted-foreground border-transparent"
+                  : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
               }`}
               onClick={() => setView("list")}
             >
@@ -132,7 +142,7 @@ export default function Home() {
           <input
             type="text"
             placeholder="Search..."
-            className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border"
+            className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border focus:ring-2 focus:ring-primary/20 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -149,17 +159,33 @@ export default function Home() {
           onSelectAuthor={setSelectedAuthor}
         />
 
-        <main className="overflow-auto">
+        <main className="overflow-auto relative">
           {loading && <p className="p-6">Loading books...</p>}
           {error && <p className="p-6 text-destructive">{error}</p>}
           {!loading && !error && (
-            <>
+            <AnimatePresence mode="wait">
               {view === "grid" ? (
-                <BookGrid books={filteredBooks} onSelect={setSelectedBook} />
+                <motion.div
+                  key="grid"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <BookGrid books={filteredBooks} onSelect={setSelectedBook} />
+                </motion.div>
               ) : (
-                <BookList books={filteredBooks} onSelect={setSelectedBook} />
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <BookList books={filteredBooks} onSelect={setSelectedBook} />
+                </motion.div>
               )}
-            </>
+            </AnimatePresence>
           )}
         </main>
 
