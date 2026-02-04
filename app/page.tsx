@@ -2,7 +2,6 @@
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 
 type Book = {
   id: number;
@@ -30,6 +29,14 @@ const mockBooks: Book[] = [
     tags: ["fantasía"],
     rating: 4,
   },
+  {
+    id: 3,
+    title: "Proyecto Hail Mary",
+    author: "Andy Weir",
+    cover: "/covers/hailmary.jpg",
+    tags: ["sci-fi"],
+    rating: 4,
+  }
 ];
 
 export default function Home() {
@@ -55,7 +62,7 @@ export default function Home() {
       <div
         className="grid h-full"
         style={{
-          gridTemplateColumns: "250px 1fr 400px",
+          gridTemplateColumns: "250px 1fr",
           gridTemplateRows: "60px 1fr 260px",
         }}
       >
@@ -244,6 +251,11 @@ export default function Home() {
                 <p className="text-sm mb-2">
                   <span className="font-semibold">Autor:</span>{" "}
                   {selectedBook.author}
+                </p>
+                <p className="text-sm mb-2">
+                  <span className="font-semibold">Rating:</span>{" "}
+                  {"★".repeat(selectedBook.rating)}
+                  {"☆".repeat(5 - selectedBook.rating)}
                 </p>
                 <p className="text-sm mb-2">
                   <span className="font-semibold">Tags:</span>{" "}
