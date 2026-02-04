@@ -97,8 +97,8 @@ export const BookRepository = {
     const db = await getDb();
     const tagsString = book.tags.join(",");
     await db.execute(
-      "UPDATE books SET title = $1, author = $2, cover = $3, tags = $4, rating = $5 WHERE id = $6",
-      [book.title, book.author, book.cover, tagsString, book.rating, book.id]
+      "UPDATE books SET title = $1, author = $2, cover = $3, tags = $4, rating = $5, path = $6 WHERE id = $7",
+      [book.title, book.author, book.cover, tagsString, book.rating, book.path, book.id]
     );
   },
 

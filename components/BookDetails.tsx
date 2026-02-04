@@ -50,6 +50,9 @@ export function BookDetails({ book, onEdit, onDelete }: BookDetailsProps) {
           <span className="font-semibold">Autor:</span> {book.author}
         </p>
         <p className="text-sm mb-2">
+          <span className="font-semibold">Epub:</span> {book.path}
+        </p>
+        <p className="text-sm mb-2">
           <span className="font-semibold">Rating:</span>{" "}
           {"★".repeat(book.rating)}
           {"☆".repeat(5 - book.rating)}
