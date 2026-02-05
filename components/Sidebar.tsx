@@ -114,7 +114,7 @@ export function Sidebar({
             }`}
             onClick={() => handleSelectAuthor(author)}
           >
-            <span className="flex-shrink-0">✍️</span>
+            <span className="flex-shrink-0">🤵🏽</span>
             {!isCollapsed && (
               <span className="flex-1 flex justify-between">
                 <span className="truncate">{author}</span>
