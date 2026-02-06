@@ -62,7 +62,7 @@ export default function Home() {
             setIsDragging(false);
             // Correctly access the paths array from the payload object
             const payload = event.payload as { paths: string[] } | null;
-            const filePaths = payload?.paths || null;        console.log(filePaths);
+            const filePaths = payload?.paths || null;
 
       if (filePaths && filePaths.length > 0) {
         const epubFiles = filePaths.filter((path) =>
@@ -80,7 +80,7 @@ export default function Home() {
             alert(`Failed to parse EPUB file: ${err}`);
           }
         } else {
-          alert("Please drop a valid .epub file.");
+          alert("Por favor arrastra un archivo .epub válido");
         }
       }
     }).then(fn => { unlistenDragDrop = fn; }).catch(console.error);

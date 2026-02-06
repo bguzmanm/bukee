@@ -88,8 +88,8 @@ export const BookRepository = {
     const db = await getDb();
     const tagsString = book.tags.join(",");
     await db.execute(
-      "INSERT INTO books (title, author, cover, tags, rating) VALUES ($1, $2, $3, $4, $5)",
-      [book.title, book.author, book.cover, tagsString, book.rating]
+      "INSERT INTO books (title, author, cover, tags, rating, path) VALUES ($1, $2, $3, $4, $5, $6)",
+      [book.title, book.author, book.cover, tagsString, book.rating, book.path]
     );
   },
 

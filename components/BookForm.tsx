@@ -97,10 +97,10 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
           <div>
             <label className="block text-sm font-medium mb-1">Rating (0-5)</label>
             <input
+              className="w-full p-2 rounded border bg-input"
               type="number"
               min="0"
               max="5"
-              className="w-full p-2 rounded border bg-input"
               value={formData.rating}
               onChange={(e) => setFormData({ ...formData, rating: parseInt(e.target.value) || 0 })}
             />
