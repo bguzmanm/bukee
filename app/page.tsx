@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useBooks } from "@/hooks/useBooks";
 import { Book } from "@/types";
@@ -12,7 +12,7 @@ import { BookForm } from "@/components/BookForm";
 import { DragDropOverlay } from "@/components/DragDropOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { parseEpub } from "@/lib/epub";
-import EpubDrop from "@/components/EpubDrop";
+import { listen } from "@tauri-apps/api/event";
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -25,9 +25,6 @@ export default function Home() {
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Ref to keep track of drag enter/leave events to avoid flickering
-  const dragCounter = useRef(0);
-
   const {
     books,
     tags,
@@ -39,104 +36,68 @@ export default function Home() {
     deleteBook,
   } = useBooks();
 
-  // Drag and Drop Handlers
-  const handleDragEnter = useCallback((e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current += 1;
-
-    const dragEvent = e as DragEvent;
-    if (
-      dragEvent.dataTransfer?.items &&
-      dragEvent.dataTransfer.items.length > 0
-    ) {
-      // Verificar que sea un archivo
-      const hasFiles = Array.from(dragEvent.dataTransfer.items).some(
-        (item: DataTransferItem) => item.kind === "file",
-      );
-      if (hasFiles) {
-        setIsDragging(true);
-      }
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current -= 1;
-
-    // Solo desactivar si salimos completamente de todos los elementos
-    if (dragCounter.current <= 0) {
-      dragCounter.current = 0;
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDragOver = useCallback((e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const dragEvent = e as DragEvent;
-    if (dragEvent.dataTransfer) {
-      dragEvent.dataTransfer.dropEffect = "copy";
-    }
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    dragCounter.current = 0;
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(async (e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current = 0;
-    setIsDragging(false);
-
-    const dragEvent = e as DragEvent;
-    if (
-      dragEvent.dataTransfer?.files &&
-      dragEvent.dataTransfer.files.length > 0
-    ) {
-      const file = dragEvent.dataTransfer.files[0];
-      if (file.name.toLowerCase().endsWith(".epub")) {
-        try {
-          const metadata = await parseEpub(file);
-          // Open form with extracted data as a "new book" (no ID)
-          setEditingBook(metadata as Book);
-          setIsFormOpen(true);
-        } catch (err) {
-          console.error("Error parsing EPUB:", err);
-          alert("Failed to parse EPUB file.");
-        }
-      } else {
-        alert("Please drop a valid .epub file.");
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    // Usar document en lugar de window para mejor compatibilidad
-    document.addEventListener("dragenter", handleDragEnter);
-    document.addEventListener("dragleave", handleDragLeave);
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("drop", handleDrop);
-    document.addEventListener("dragend", handleDragEnd);
+    // Tauri v2 drag and drop events
+    let unlistenDragEnter: () => void;
+    let unlistenDragLeave: () => void;
+    let unlistenDragDrop: () => void;
+    let unlistenDragOver: () => void;
+
+    async function setupListeners() {
+      unlistenDragEnter = await listen("tauri://drag-enter", (event) => {
+        // payload can be null if the dragged item is not a file
+        if (event.payload) {
+          setIsDragging(true);
+        }
+      });
+
+      unlistenDragLeave = await listen("tauri://drag-leave", () => {
+        setIsDragging(false);
+      });
+
+      // drag-over fires frequently, mainly for UI feedback
+      unlistenDragOver = await listen("tauri://drag-over", (event) => {
+        // Prevent default to allow drop
+        // Note: For Tauri, preventing default here might not be strictly necessary
+        // for enabling the drop, but it's good practice for web standards.
+        // The payload for drag-over might be null or contain paths.
+      });
+
+      unlistenDragDrop = await listen("tauri://drag-drop", async (event) => {
+        setIsDragging(false);
+        const filePaths = event.payload as string[] | null;
+
+
+        if (filePaths && filePaths.length > 0) {
+          const epubFiles = filePaths.filter((path) =>
+            path.toLowerCase().endsWith(".epub"),
+          );
+
+          if (epubFiles.length > 0) {
+            try {
+              const metadata = await parseEpub(epubFiles[0]);
+              setEditingBook(metadata as Book);
+              setIsFormOpen(true);
+            } catch (err) {
+              console.error("Error parsing EPUB:", err);
+              alert(`Failed to parse EPUB file: ${err}`);
+            }
+          } else {
+            alert("Please drop a valid .epub file.");
+          }
+        }
+      });
+    }
+
+    setupListeners();
 
     return () => {
-      document.removeEventListener("dragenter", handleDragEnter);
-      document.removeEventListener("dragleave", handleDragLeave);
-      document.removeEventListener("dragover", handleDragOver);
-      document.removeEventListener("drop", handleDrop);
-      document.removeEventListener("dragend", handleDragEnd);
+      unlistenDragEnter && unlistenDragEnter();
+      unlistenDragLeave && unlistenDragLeave();
+      unlistenDragDrop && unlistenDragDrop();
+      unlistenDragOver && unlistenDragOver();
     };
-  }, [
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
-    handleDragEnd,
-  ]);
+  }, []);
 
   const filteredBooks = useMemo(() => {
     return books.filter((b) => {
@@ -192,33 +153,7 @@ export default function Home() {
   };
 
   return (
-
     <main className="h-screen m-0 relative bg-background text-foreground">
-      <EpubDrop
-          onUploaded={(metadataOrPath: any) => {
-            // Si tu EpubDrop devuelve los metadatos (preferible), úsalos directamente:
-            if (metadataOrPath && typeof metadataOrPath === "object") {
-              setEditingBook(metadataOrPath as Book);
-              setIsFormOpen(true);
-              return;
-            }
-
-            // Si devuelve una ruta remota/string, podrías abrir un flujo adicional para obtener metadatos,
-            // o crear un registro mínimo con la ruta y abrir el formulario:
-            if (typeof metadataOrPath === "string") {
-              setEditingBook({
-                id: 0,
-                title: "",
-                author: "",
-                cover: "",
-                tags: [],
-                rating: 0,
-                path: metadataOrPath,
-              } as Book);
-              setIsFormOpen(true);
-            }
-          }}
-      />
       <DragDropOverlay isDragging={isDragging} />
 
       <div className="absolute top-4 right-4 z-10">

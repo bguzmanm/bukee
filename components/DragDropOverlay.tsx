@@ -6,6 +6,7 @@ interface DragDropOverlayProps {
 }
 
 export function DragDropOverlay({ isDragging }: DragDropOverlayProps) {
+
   return (
     <AnimatePresence>
       {isDragging && (
@@ -23,9 +24,9 @@ export function DragDropOverlay({ isDragging }: DragDropOverlayProps) {
             <div className="p-6 bg-primary/10 rounded-full">
               <Upload className="w-16 h-16" />
             </div>
-            <h2 className="text-3xl font-bold">Drop EPUB here</h2>
+            <h2 className="text-3xl font-bold">Suelta un EPUB aquí</h2>
             <p className="text-muted-foreground text-lg">
-              Well extract the metadata for you
+              Extraeremos la metadata por tí
             </p>
           </motion.div>
         </motion.div>
