@@ -23,7 +23,7 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
         title: initialData.title,
         author: initialData.author,
         cover: initialData.cover,
-        tags: initialData.tags.join(", "),
+        tags: initialData.tags ? initialData.tags.join(", ") : "",
         rating: initialData.rating,
         path: initialData.path,
       });

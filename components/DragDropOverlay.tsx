@@ -6,7 +6,6 @@ interface DragDropOverlayProps {
 }
 
 export function DragDropOverlay({ isDragging }: DragDropOverlayProps) {
-
   return (
     <AnimatePresence>
       {isDragging && (

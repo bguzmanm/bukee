@@ -37,61 +37,56 @@ export default function Home() {
   } = useBooks();
 
   useEffect(() => {
+    console.log("Setting up Tauri event listeners...");
     // Tauri v2 drag and drop events
-    let unlistenDragEnter: () => void;
-    let unlistenDragLeave: () => void;
-    let unlistenDragDrop: () => void;
-    let unlistenDragOver: () => void;
+    let unlistenDragEnter: (() => void) | undefined;
+    let unlistenDragLeave: (() => void) | undefined;
+    let unlistenDragDrop: (() => void) | undefined;
+    let unlistenDragOver: (() => void) | undefined;
 
-    async function setupListeners() {
-      unlistenDragEnter = await listen("tauri://drag-enter", (event) => {
-        // payload can be null if the dragged item is not a file
-        if (event.payload) {
-          setIsDragging(true);
-        }
-      });
+    listen("tauri://drag-enter", (event) => {
+      if (event.payload) {
+        setIsDragging(true);
+      }
+    }).then(fn => { unlistenDragEnter = fn; }).catch(console.error);
 
-      unlistenDragLeave = await listen("tauri://drag-leave", () => {
-        setIsDragging(false);
-      });
+    listen("tauri://drag-leave", () => {
+      setIsDragging(false);
+    }).then(fn => { unlistenDragLeave = fn; }).catch(console.error);
 
-      // drag-over fires frequently, mainly for UI feedback
-      unlistenDragOver = await listen("tauri://drag-over", (event) => {
-        // Prevent default to allow drop
-        // Note: For Tauri, preventing default here might not be strictly necessary
-        // for enabling the drop, but it's good practice for web standards.
-        // The payload for drag-over might be null or contain paths.
-      });
+    listen("tauri://drag-over", (event) => {
+      // This event fires frequently.
+    }).then(fn => { unlistenDragOver = fn; }).catch(console.error);
 
-      unlistenDragDrop = await listen("tauri://drag-drop", async (event) => {
-        setIsDragging(false);
-        const filePaths = event.payload as string[] | null;
+          listen("tauri://drag-drop", async (event) => {
+            setIsDragging(false);
+            // Correctly access the paths array from the payload object
+            const payload = event.payload as { paths: string[] } | null;
+            const filePaths = payload?.paths || null;        console.log(filePaths);
 
+      if (filePaths && filePaths.length > 0) {
+        const epubFiles = filePaths.filter((path) =>
+          path.toLowerCase().endsWith(".epub"),
+        );
+        console.log(epubFiles);
 
-        if (filePaths && filePaths.length > 0) {
-          const epubFiles = filePaths.filter((path) =>
-            path.toLowerCase().endsWith(".epub"),
-          );
-
-          if (epubFiles.length > 0) {
-            try {
-              const metadata = await parseEpub(epubFiles[0]);
-              setEditingBook(metadata as Book);
-              setIsFormOpen(true);
-            } catch (err) {
-              console.error("Error parsing EPUB:", err);
-              alert(`Failed to parse EPUB file: ${err}`);
-            }
-          } else {
-            alert("Please drop a valid .epub file.");
+        if (epubFiles.length > 0) {
+          try {
+            const metadata = await parseEpub(epubFiles[0]);
+            setEditingBook(metadata as Book);
+            setIsFormOpen(true);
+          } catch (err) {
+            console.error("Error parsing EPUB:", err);
+            alert(`Failed to parse EPUB file: ${err}`);
           }
+        } else {
+          alert("Please drop a valid .epub file.");
         }
-      });
-    }
-
-    setupListeners();
+      }
+    }).then(fn => { unlistenDragDrop = fn; }).catch(console.error);
 
     return () => {
+      console.log("Cleaning up Tauri event listeners...");
       unlistenDragEnter && unlistenDragEnter();
       unlistenDragLeave && unlistenDragLeave();
       unlistenDragDrop && unlistenDragDrop();
