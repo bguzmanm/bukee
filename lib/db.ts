@@ -44,7 +44,7 @@ export const BookRepository = {
 
   async getAll(): Promise<Book[]> {
     const db = await getDb();
-    const result: any[] = await db.select("SELECT * FROM books");
+    const result: any[] = await db.select("SELECT title, author, cover, tags, rating, path FROM books");
     return result.map((row) => ({
       ...row,
       tags: row.tags ? row.tags.split(",") : [],
