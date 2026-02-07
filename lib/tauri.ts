@@ -4,6 +4,8 @@ export interface EpubMetadata {
   author: string;
   cover: string;
   path: string;
+  description: string;
+  identifier: string;
 }
 
 export async function parseEpubMetadata(filePath: string): Promise<EpubMetadata> {

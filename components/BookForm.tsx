@@ -15,6 +15,8 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
     tags: "",
     rating: 0,
     path: "",
+    description: "",
+    identifier: "",
   });
 
   useEffect(() => {
@@ -26,6 +28,8 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
         tags: initialData.tags ? initialData.tags.join(", ") : "",
         rating: initialData.rating ?? 0,
         path: initialData.path,
+        description: initialData.description ?? "",
+        identifier: initialData.identifier ?? "",
       });
     }
   }, [initialData]);
@@ -40,6 +44,8 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
       rating: formData.rating,
       tags: formData.tags.split(",").map((t) => t.trim()).filter(Boolean),
       path: formData.path,
+      description: formData.description,
+      identifier: formData.identifier,
     };
 
     if (initialData?.id) {
@@ -112,6 +118,23 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
                 value={formData.path}
                 onChange={(e) => setFormData({ ...formData, path: e.target.value })}
                 placeholder="/books/default.jpg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              className="w-full p-2 rounded border bg-input"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+            ></textarea>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Identifier</label>
+            <input
+              className="w-full p-2 rounded border bg-input"
+              value={formData.identifier}
+              onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
             />
           </div>
           <div className="flex justify-end gap-2 mt-6">

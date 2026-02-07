@@ -15,6 +15,8 @@ struct EpubMetadata {
     author: String,
     cover: String,
     path: String,
+    description: String,
+    identifier: String,
 }
 
 #[tauri::command]
@@ -86,6 +88,11 @@ async fn parse_epub_metadata(
     let author = doc.mdata("creator").unwrap_or_else(|| "Unknown Author".to_string());
     info!("EPUB Title: '{}', Author: '{}'", title, author);
 
+    let description = doc.mdata("description").unwrap_or_else(|| "".to_string());
+    let identifier = doc.mdata("identifier").unwrap_or_else(|| "".to_string());
+    info!("EPUB Description: '{}'", description);
+    info!("EPUB Identifier: '{}'", identifier);
+
     let cover_data_url = if let Ok(cover_data) = doc.get_cover() {
         // We get raw image data, so we have to guess the mime type.
         // 'image/jpeg' is a common default for EPUB covers.
@@ -103,6 +110,8 @@ async fn parse_epub_metadata(
         author,
         cover: cover_data_url,
         path: public_path,
+        description,
+        identifier,
     })
 }
 
@@ -112,12 +121,13 @@ pub fn run() {
         Migration {
             version: 1,
             description: "create_initial_tables",
-            sql: "CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT, author TEXT, cover TEXT, tags TEXT, rating INTEGER, path TEXT);",
+            sql: "CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT, author TEXT, cover TEXT, tags TEXT, rating INTEGER, path TEXT, description TEXT, identifier TEXT);",
             kind: MigrationKind::Up,
         }
     ];
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:bukee.db", migrations)

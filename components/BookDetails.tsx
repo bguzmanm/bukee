@@ -1,5 +1,6 @@
-import {Book} from "@/types";
+import {Book}from "@/types";
 import {motion, AnimatePresence} from "framer-motion";
+import { ask } from '@tauri-apps/plugin-dialog';
 
 interface BookDetailsProps {
   book: Book | null;
@@ -43,8 +44,8 @@ export function BookDetails({book, onEdit, onDelete}: BookDetailsProps) {
                 Edit
               </button>
               <button
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this book?")) {
+                onClick={async () => {
+                  if (await ask("Estás seguro de eliminar este libro?", { title: 'Bukee', kind: 'warning'})) {
                     onDelete(book.id);
                   }
                 }}
@@ -85,6 +86,9 @@ export function BookDetails({book, onEdit, onDelete}: BookDetailsProps) {
                 transition={{delay: 0.2}}
               >
                 <p className="text-sm">
+                  <span className="font-semibold">ISBN:</span> {book.identifier}
+                </p>
+                <p className="text-sm">
                   <span className="font-semibold">Autor:</span> {book.author}
                 </p>
                 <p className="text-sm">
@@ -111,8 +115,7 @@ export function BookDetails({book, onEdit, onDelete}: BookDetailsProps) {
                   </a>
                 </p>
                 <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
-                  Comentarios: Aquí irían notas personales, sinopsis o cualquier otro detalle
-                  relevante sobre el libro.
+                  {book.description}
                 </p>
               </motion.div>
             </div>

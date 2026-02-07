@@ -5,6 +5,7 @@ const internalHost = process.env.TAURI_DEV_HOST || "localhost";
 const nextConfig: NextConfig = {
   // https://nextjs.org/docs/pages/building-your-application/deploying/static-exports
   output: "export",
+  transpilePackages: ['@tauri-apps/api'], // Agregado para asegurar la transpilación de los módulos de Tauri
   // Note: This feature is required to use the Next.js Image component in SSG mode.
   // See https://nextjs.org/docs/messages/export-image-api for different workarounds.
   images: {

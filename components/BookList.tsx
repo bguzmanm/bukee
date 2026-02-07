@@ -30,9 +30,9 @@ export function BookList({ books, onSelect }: BookListProps) {
       </thead>
       <motion.tbody layout>
         <AnimatePresence>
-          {books.map((book) => (
+          {books.map((book, index) => (
             <motion.tr
-              key={book.id}
+              key={book.id ? book.id.toString() : `book-${index}`}
               layout
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

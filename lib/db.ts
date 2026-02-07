@@ -35,7 +35,7 @@ export const BookRepository = {
       await this.create({
         title: "Proyecto Hail Mary",
         author: "Andy Weir",
-        cover: "/covers/hailmary.jpg",
+        cover: "/covers/hail-mary.jpg",
         tags: ["sci-fi"],
         rating: 4,
       } as Book);
@@ -44,7 +44,7 @@ export const BookRepository = {
 
   async getAll(): Promise<Book[]> {
     const db = await getDb();
-    const result: any[] = await db.select("SELECT title, author, cover, tags, rating, path FROM books");
+    const result: any[] = await db.select("SELECT id, title, author, cover, tags, rating, path, description, identifier FROM books");
     return result.map((row) => ({
       ...row,
       tags: row.tags ? row.tags.split(",") : [],
@@ -88,8 +88,8 @@ export const BookRepository = {
     const db = await getDb();
     const tagsString = book.tags.join(",");
     await db.execute(
-      "INSERT INTO books (title, author, cover, tags, rating, path) VALUES ($1, $2, $3, $4, $5, $6)",
-      [book.title, book.author, book.cover, tagsString, book.rating, book.path]
+      "INSERT INTO books (title, author, cover, tags, rating, path, description, identifier) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [book.title, book.author, book.cover, tagsString, book.rating, book.path, book.description, book.identifier]
     );
   },
 
@@ -97,8 +97,8 @@ export const BookRepository = {
     const db = await getDb();
     const tagsString = book.tags.join(",");
     await db.execute(
-      "UPDATE books SET title = $1, author = $2, cover = $3, tags = $4, rating = $5, path = $6 WHERE id = $7",
-      [book.title, book.author, book.cover, tagsString, book.rating, book.path, book.id]
+      "UPDATE books SET title = $1, author = $2, cover = $3, tags = $4, rating = $5, path = $6, description = $7, identifier = $8 WHERE id = $9",
+      [book.title, book.author, book.cover, tagsString, book.rating, book.path, book.description, book.identifier, book.id]
     );
   },
 

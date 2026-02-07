@@ -6,4 +6,6 @@ export interface Book {
   tags: string[];
   rating: number;
   path: string;
+  description: string;
+  identifier: string;
 }
