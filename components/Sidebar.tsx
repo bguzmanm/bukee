@@ -1,4 +1,5 @@
 import { ChevronLeft, Tag, User, Library } from "lucide-react";
+import { SidebarTooltip } from "./SidebarTooltip";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -56,15 +57,17 @@ export function Sidebar({
 
       {/* All Books */}
       <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
-        <li 
-          className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
-            selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
-          }`}
-          onClick={handleSelectAll}
-        >
-          <Library className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span>All Books</span>}
-        </li>
+        <SidebarTooltip content="All Books" show={isCollapsed}>
+          <li 
+            className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+              selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+            }`}
+            onClick={handleSelectAll}
+          >
+            <Library className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && <span>All Books</span>}
+          </li>
+        </SidebarTooltip>
       </ul>
 
       {/* Tags Section */}
@@ -78,21 +81,22 @@ export function Sidebar({
       </div>
       <ul className="list-none p-0 m-0 text-sm space-y-1">
         {Object.entries(tags).map(([tag, count]) => (
-          <li
-            key={tag}
-            className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
-              selectedTag === tag ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
-            }`}
-            onClick={() => handleSelectTag(tag)}
-          >
-            <span className="flex-shrink-0">🏷️</span>
-            {!isCollapsed && (
-              <span className="flex-1 flex justify-between">
-                <span className="truncate">{tag}</span>
-                <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{count}</span>
-              </span>
-            )}
-          </li>
+          <SidebarTooltip key={tag} content={`${tag} (${count})`} show={isCollapsed}>
+            <li
+              className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                selectedTag === tag ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+              }`}
+              onClick={() => handleSelectTag(tag)}
+            >
+              <span className="flex-shrink-0">🏷️</span>
+              {!isCollapsed && (
+                <span className="flex-1 flex justify-between">
+                  <span className="truncate">{tag}</span>
+                  <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{count}</span>
+                </span>
+              )}
+            </li>
+          </SidebarTooltip>
         ))}
       </ul>
 
@@ -107,21 +111,22 @@ export function Sidebar({
       </div>
       <ul className="list-none p-0 m-0 text-sm space-y-1">
         {Object.entries(authors).map(([author, count]) => (
-          <li
-            key={author}
-            className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
-              selectedAuthor === author ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
-            }`}
-            onClick={() => handleSelectAuthor(author)}
-          >
-            <span className="flex-shrink-0">🤵🏽</span>
-            {!isCollapsed && (
-              <span className="flex-1 flex justify-between">
-                <span className="truncate">{author}</span>
-                <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{count}</span>
-              </span>
-            )}
-          </li>
+          <SidebarTooltip key={author} content={`${author} (${count})`} show={isCollapsed}>
+            <li
+              className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                selectedAuthor === author ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+              }`}
+              onClick={() => handleSelectAuthor(author)}
+            >
+              <span className="flex-shrink-0">✍️</span>
+              {!isCollapsed && (
+                <span className="flex-1 flex justify-between">
+                  <span className="truncate">{author}</span>
+                  <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{count}</span>
+                </span>
+              )}
+            </li>
+          </SidebarTooltip>
         ))}
       </ul>
     </aside>
