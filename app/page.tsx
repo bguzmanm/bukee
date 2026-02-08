@@ -10,9 +10,13 @@ import { BookDetails } from "@/components/BookDetails";
 import { Sidebar } from "@/components/Sidebar";
 import { BookForm } from "@/components/BookForm";
 import { DragDropOverlay } from "@/components/DragDropOverlay";
+import { Pagination } from "@/components/Pagination";
 import { motion, AnimatePresence } from "framer-motion";
 import { parseEpub } from "@/lib/epub";
 import { listen } from "@tauri-apps/api/event";
+import { readFile } from "@tauri-apps/plugin-fs";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -25,7 +29,8 @@ export default function Home() {
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
-  // Sorting State
+  // Pagination & Sorting State
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const {
@@ -39,9 +44,13 @@ export default function Home() {
     deleteBook,
   } = useBooks();
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedTag, selectedAuthor, view]);
+
   useEffect(() => {
     console.log("Setting up Tauri event listeners...");
-    // Tauri v2 drag and drop events
     let unlistenDragEnter: (() => void) | undefined;
     let unlistenDragLeave: (() => void) | undefined;
     let unlistenDragDrop: (() => void) | undefined;
@@ -61,22 +70,43 @@ export default function Home() {
       // This event fires frequently.
     }).then(fn => { unlistenDragOver = fn; }).catch(console.error);
 
-          listen("tauri://drag-drop", async (event) => {
-            setIsDragging(false);
-            // Correctly access the paths array from the payload object
-            const payload = event.payload as { paths: string[] } | null;
-            const filePaths = payload?.paths || null;
+    listen("tauri://drag-drop", async (event) => {
+      setIsDragging(false);
+      const payload = event.payload as { paths: string[] } | null;
+      const filePaths = payload?.paths || null;
 
       if (filePaths && filePaths.length > 0) {
         const epubFiles = filePaths.filter((path) =>
           path.toLowerCase().endsWith(".epub"),
         );
-        console.log(epubFiles);
 
         if (epubFiles.length > 0) {
+          const filePath = epubFiles[0];
           try {
-            const metadata = await parseEpub(epubFiles[0]);
-            setEditingBook(metadata as Book);
+            // Read the file using Tauri's fs plugin (readFile returns Uint8Array)
+            const binaryContent = await readFile(filePath);
+            
+            // Convert Uint8Array to ArrayBuffer explicitly to satisfy TS
+            const arrayBuffer = binaryContent.buffer.slice(
+              binaryContent.byteOffset, 
+              binaryContent.byteOffset + binaryContent.byteLength
+            ) as ArrayBuffer;
+
+            const metadata = await parseEpub(arrayBuffer);
+            
+            const newBook: Book = {
+              id: 0, 
+              title: metadata.title || "Untitled",
+              author: metadata.author || "Unknown",
+              cover: metadata.cover || "",
+              tags: metadata.tags || [],
+              rating: metadata.rating || 0,
+              description: metadata.description || "",
+              identifier: metadata.identifier || "",
+              path: filePath, // Store the actual file path
+            };
+            
+            setEditingBook(newBook); 
             setIsFormOpen(true);
           } catch (err) {
             console.error("Error parsing EPUB:", err);
@@ -109,10 +139,10 @@ export default function Home() {
         );
       })();
 
-      const matchesTag = selectedTag
-        ? b.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+      const matchesTag = selectedTag 
+        ? b.tags.some(t => t.toLowerCase() === selectedTag.toLowerCase())
         : true;
-
+      
       const matchesAuthor = selectedAuthor
         ? b.author.toLowerCase() === selectedAuthor.toLowerCase()
         : true;
@@ -154,6 +184,14 @@ export default function Home() {
       return 0;
     });
   }, [filteredBooks, sortConfig]);
+
+  // Pagination Logic
+  const paginatedBooks = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedBooks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [sortedBooks, currentPage]);
+
+  const totalPages = Math.ceil(sortedBooks.length / ITEMS_PER_PAGE);
 
   const handleSort = (key: keyof Book) => {
     let direction: SortDirection = "asc";
@@ -277,38 +315,48 @@ export default function Home() {
           onSelectAuthor={setSelectedAuthor}
         />
 
-        <main className="overflow-auto relative">
-          {loading && <p className="p-6">Loading books...</p>}
-          {error && <p className="p-6 text-destructive">{error}</p>}
+        <main className="relative flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-0">
+            {loading && <p className="p-6">Loading books...</p>}
+            {error && <p className="p-6 text-destructive">{error}</p>}
+            {!loading && !error && (
+              <AnimatePresence mode="wait">
+                {view === "grid" ? (
+                  <motion.div
+                    key="grid"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <BookGrid books={paginatedBooks} onSelect={setSelectedBook} />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="list"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <BookList 
+                      books={paginatedBooks} 
+                      onSelect={setSelectedBook}
+                      sortConfig={sortConfig}
+                      onSort={handleSort}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+          </div>
+          
           {!loading && !error && (
-            <AnimatePresence mode="wait">
-              {view === "grid" ? (
-                <motion.div
-                  key="grid"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <BookGrid books={sortedBooks} onSelect={setSelectedBook} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="list"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <BookList 
-                    books={sortedBooks} 
-                    onSelect={setSelectedBook}
-                    sortConfig={sortConfig}
-                    onSort={handleSort}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+             <Pagination 
+               currentPage={currentPage}
+               totalPages={totalPages}
+               onPageChange={setCurrentPage}
+             />
           )}
         </main>
 
