@@ -16,7 +16,7 @@ import { parseEpub } from "@/lib/epub";
 import { listen } from "@tauri-apps/api/event";
 import { readFile } from "@tauri-apps/plugin-fs";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 8;
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
