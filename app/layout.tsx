@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato as LatoFont, Geist_Mono } from "next/font/google";
+import { Lato as LatoFont } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -10,10 +10,10 @@ const lato = LatoFont({ // Usar el alias
   variable: '--font-lato',
 });
 
-const geistMono = Geist_Mono({
+/*const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
+});*/
 
 export const metadata: Metadata = {
   title: "Bukee",
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${lato.variable}} antialiased`}
+        className={`${lato.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"

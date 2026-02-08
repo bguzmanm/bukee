@@ -2,6 +2,7 @@ import {Book}from "@/types";
 import {motion, AnimatePresence} from "framer-motion";
 import { ask } from '@tauri-apps/plugin-dialog';
 
+
 interface BookDetailsProps {
   book: Book | null;
   onEdit: (book: Book) => void;

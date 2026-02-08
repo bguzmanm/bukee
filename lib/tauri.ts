@@ -9,5 +9,7 @@ export interface EpubMetadata {
 }
 
 export async function parseEpubMetadata(filePath: string): Promise<EpubMetadata> {
+
   return await invoke<EpubMetadata>("parse_epub_metadata", { filePath });
+
 }

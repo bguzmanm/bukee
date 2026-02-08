@@ -21,7 +21,6 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-lato)"], // Aquí definimos nuestra fuente Lato como la fuente sans-serif predeterminada
-        mono: ["var(--font-geist-mono)"], // Opcional: mantener la fuente mono si se usa
       },
       colors: {
         border: "hsl(var(--border))",
