@@ -5,7 +5,14 @@ export interface Book {
   cover: string;
   tags: string[];
   rating: number;
-  path: string;
-  description: string;
-  identifier: string;
+  path?: string;
+  description?: string;
+  identifier?: string;
+}
+
+export type SortDirection = "asc" | "desc";
+
+export interface SortConfig {
+  key: keyof Book;
+  direction: SortDirection;
 }

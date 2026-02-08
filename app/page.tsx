@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useBooks } from "@/hooks/useBooks";
-import { Book } from "@/types";
+import { Book, SortConfig, SortDirection } from "@/types";
 import { BookGrid } from "@/components/BookGrid";
 import { BookList } from "@/components/BookList";
 import { BookDetails } from "@/components/BookDetails";
@@ -24,6 +24,9 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const {
     books,
@@ -117,6 +120,48 @@ export default function Home() {
       return matchesSearch && matchesTag && matchesAuthor;
     });
   }, [books, search, selectedTag, selectedAuthor]);
+
+  // Sorting Logic
+  const sortedBooks = useMemo(() => {
+    if (!sortConfig) return filteredBooks;
+
+    return [...filteredBooks].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+
+      if (aValue === bValue) return 0;
+
+      if (Array.isArray(aValue) && Array.isArray(bValue)) {
+        const aString = aValue.join(", ").toLowerCase();
+        const bString = bValue.join(", ").toLowerCase();
+        return sortConfig.direction === "asc" 
+          ? aString.localeCompare(bString)
+          : bString.localeCompare(aString);
+      }
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortConfig.direction === "asc"
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortConfig.direction === "asc"
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+
+      return 0;
+    });
+  }, [filteredBooks, sortConfig]);
+
+  const handleSort = (key: keyof Book) => {
+    let direction: SortDirection = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleCreate = () => {
     setEditingBook(null);
@@ -245,7 +290,7 @@ export default function Home() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <BookGrid books={filteredBooks} onSelect={setSelectedBook} />
+                  <BookGrid books={sortedBooks} onSelect={setSelectedBook} />
                 </motion.div>
               ) : (
                 <motion.div
@@ -255,7 +300,12 @@ export default function Home() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <BookList books={filteredBooks} onSelect={setSelectedBook} />
+                  <BookList 
+                    books={sortedBooks} 
+                    onSelect={setSelectedBook}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
