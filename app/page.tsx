@@ -15,6 +15,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { parseEpub } from "@/lib/epub";
 import { listen } from "@tauri-apps/api/event";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { useKindle } from "@/hooks/useKindle";
+import { KindleGrid } from "@/components/KindleGrid";
+import { KindleBookDetails } from "@/components/KindleBookDetails";
+import { KindleBook, KindleStatusFilter } from "@/types";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -28,6 +33,18 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const [isKindleView, setIsKindleView] = useState(false);
+  const [selectedKindleBook, setSelectedKindleBook] = useState<KindleBook | null>(null);
+  const [kindleSelectionMode, setKindleSelectionMode] = useState(false);
+  const [selectedKindlePaths, setSelectedKindlePaths] = useState<string[]>([]);
+  const [kindleStatusFilter, setKindleStatusFilter] = useState<KindleStatusFilter>("todos");
+  const kindle = useKindle();
+
+  const filteredKindleBooks = useMemo(() => {
+    if (kindleStatusFilter === "todos") return kindle.books;
+    return kindle.books.filter((b) => (b.status ?? "sin_comenzar") === kindleStatusFilter);
+  }, [kindle.books, kindleStatusFilter]);
   
   // Pagination & Sorting State
   const [currentPage, setCurrentPage] = useState(1);
@@ -218,6 +235,55 @@ export default function Home() {
     }
   };
 
+  const handleKindleDelete = async (book: KindleBook) => {
+    const ok = await kindle.removeBook(book.path);
+    if (ok && selectedKindleBook?.path === book.path) {
+      setSelectedKindleBook(null);
+    }
+    return ok;
+  };
+
+  const toggleKindleSelect = (book: KindleBook) => {
+    setSelectedKindlePaths((prev) =>
+      prev.includes(book.path)
+        ? prev.filter((p) => p !== book.path)
+        : [...prev, book.path],
+    );
+  };
+
+  const toggleSelectAllKindle = () => {
+    const all = filteredKindleBooks.map((b) => b.path);
+    setSelectedKindlePaths((prev) =>
+      all.every((p) => prev.includes(p)) ? [] : all,
+    );
+  };
+
+  const handleKindleBulkDelete = async () => {
+    const n = selectedKindlePaths.length;
+    if (n === 0) return;
+    const ok = await ask(
+      `Estás seguro de eliminar ${n} ${n === 1 ? "libro" : "libros"} del Kindle?\nSe borrarán los archivos y sus carpetas de datos (.sdr).`,
+      { title: "Bukee", kind: "warning" },
+    );
+    if (!ok) return;
+
+    const attempted = new Set(selectedKindlePaths);
+    const { failed } = await kindle.removeBooks(selectedKindlePaths);
+    const failedSet = new Set(failed);
+
+    if (
+      selectedKindleBook &&
+      attempted.has(selectedKindleBook.path) &&
+      !failedSet.has(selectedKindleBook.path)
+    ) {
+      setSelectedKindleBook(null);
+    }
+    // Mantener solo las rutas que fallaron
+    setSelectedKindlePaths(
+      (prev) => prev.filter((p) => !attempted.has(p) || failedSet.has(p)),
+    );
+  };
+
   const handleFormSubmit = async (data: Book | Omit<Book, "id">) => {
     if ("id" in data) {
       await updateBook(data as Book);
@@ -313,45 +379,126 @@ export default function Home() {
           selectedAuthor={selectedAuthor}
           onSelectTag={setSelectedTag}
           onSelectAuthor={setSelectedAuthor}
+          kindleConnected={kindle.connected}
+          activeView={isKindleView ? "kindle" : "library"}
+          onSelectLibrary={() => setIsKindleView(false)}
+          onSelectKindle={() => {
+            setSelectedBook(null);
+            setSelectedKindleBook(null);
+            setIsKindleView(true);
+          }}
         />
 
         <main className="relative flex flex-col min-h-0 overflow-hidden">
+          {isKindleView && (
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-card flex-none">
+              <button
+                onClick={() => {
+                  setKindleSelectionMode((v) => !v);
+                  setSelectedKindlePaths([]);
+                  setSelectedKindleBook(null);
+                }}
+                    className={`px-3 py-1.5 rounded-md text-sm border-2 transition-colors ${
+                      kindleSelectionMode
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                    }`}
+                  >
+                    {kindleSelectionMode ? "Cancelar selección" : "Seleccionar"}
+                  </button>
+                  <select
+                    value={kindleStatusFilter}
+                    onChange={(e) => setKindleStatusFilter(e.target.value as KindleStatusFilter)}
+                    className="px-2 py-1.5 rounded-md text-sm border bg-background"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="en_curso">En curso</option>
+                    <option value="leido">Leídos</option>
+                    <option value="sin_comenzar">Sin comenzar</option>
+                  </select>
+                  {kindleSelectionMode && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedKindlePaths.length}{" "}
+                        {selectedKindlePaths.length === 1
+                          ? "libro seleccionado"
+                          : "libros seleccionados"}
+                      </span>
+                      <button
+                        onClick={toggleSelectAllKindle}
+                        className="px-3 py-1.5 rounded-md text-sm border-2 border-transparent text-muted-foreground hover:bg-muted/80"
+                      >
+                        {filteredKindleBooks.length > 0 &&
+                        selectedKindlePaths.length === filteredKindleBooks.length
+                          ? "Ninguno"
+                          : "Todos"}
+                      </button>
+                      <button
+                        onClick={handleKindleBulkDelete}
+                        disabled={selectedKindlePaths.length === 0}
+                        className="px-3 py-1.5 rounded-md text-sm border border-destructive text-destructive hover:bg-destructive/10 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
+                      >
+                        Eliminar seleccionados ({selectedKindlePaths.length})
+                      </button>
+                    </>
+                  )}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto p-0">
-            {loading && <p className="p-6">Loading books...</p>}
-            {error && <p className="p-6 text-destructive">{error}</p>}
-            {!loading && !error && (
-              <AnimatePresence mode="wait">
-                {view === "grid" ? (
-                  <motion.div
-                    key="grid"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <BookGrid books={paginatedBooks} onSelect={setSelectedBook} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="list"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <BookList 
-                      books={paginatedBooks} 
-                      onSelect={setSelectedBook}
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                    />
-                  </motion.div>
+            {isKindleView ? (
+              <>
+                {kindle.loading && <p className="p-6">Cargando libros del Kindle...</p>}
+                {kindle.error && <p className="p-6 text-destructive">{kindle.error}</p>}
+                {!kindle.loading && !kindle.error && (
+                  <KindleGrid
+                    books={filteredKindleBooks}
+                    selected={selectedKindleBook}
+                    onSelect={setSelectedKindleBook}
+                    selectionMode={kindleSelectionMode}
+                    selectedPaths={selectedKindlePaths}
+                    onToggleSelect={toggleKindleSelect}
+                  />
                 )}
-              </AnimatePresence>
+              </>
+            ) : (
+              <>
+                {loading && <p className="p-6">Loading books...</p>}
+                {error && <p className="p-6 text-destructive">{error}</p>}
+                {!loading && !error && (
+                  <AnimatePresence mode="wait">
+                    {view === "grid" ? (
+                      <motion.div
+                        key="grid"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <BookGrid books={paginatedBooks} onSelect={setSelectedBook} />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="list"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <BookList 
+                          books={paginatedBooks} 
+                          onSelect={setSelectedBook}
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                )}
+              </>
             )}
           </div>
-          
-          {!loading && !error && (
+
+          {!isKindleView && !loading && !error && (
              <Pagination 
                currentPage={currentPage}
                totalPages={totalPages}
@@ -360,11 +507,19 @@ export default function Home() {
           )}
         </main>
 
-        <BookDetails
-          book={selectedBook}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {isKindleView ? (
+          <KindleBookDetails
+            book={selectedKindleBook}
+            onDelete={handleKindleDelete}
+          />
+        ) : (
+          <BookDetails
+            book={selectedBook}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onKindleSent={kindle.refreshBooks}
+          />
+        )}
       </div>
     </main>
   );

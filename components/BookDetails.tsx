@@ -1,15 +1,51 @@
 import {Book}from "@/types";
 import {motion, AnimatePresence} from "framer-motion";
 import { ask } from '@tauri-apps/plugin-dialog';
+import { useEffect, useState } from "react";
+import { detectKindle, sendToKindle } from "@/lib/tauri";
 
 
 interface BookDetailsProps {
   book: Book | null;
   onEdit: (book: Book) => void;
   onDelete: (id: number) => void;
+  onKindleSent?: () => void;
 }
 
-export function BookDetails({book, onEdit, onDelete}: BookDetailsProps) {
+export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsProps) {
+  const [kindlePath, setKindlePath] = useState<string | null>(null);
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sendError, setSendError] = useState("");
+
+  useEffect(() => {
+    detectKindle().then(setKindlePath).catch(() => setKindlePath(null));
+  }, []);
+
+  async function handleSendToKindle() {
+    if (!book?.path) {
+      setSendError("Este libro no tiene un archivo EPUB asociado en disco");
+      setSendState("error");
+      return;
+    }
+    setSendState("sending");
+    setSendError("");
+    try {
+      const kindle = await detectKindle();
+      setKindlePath(kindle);
+      if (!kindle) {
+        setSendError("No se encontró un Kindle conectado por USB");
+        setSendState("error");
+        return;
+      }
+      await sendToKindle(book.path);
+      setSendState("sent");
+      onKindleSent?.();
+    } catch (err) {
+      console.error(err);
+      setSendError(String(err));
+      setSendState("error");
+    }
+  }
   return (
     <section className="col-span-2 border-t bg-background/50 backdrop-blur-sm overflow-hidden relative">
       <AnimatePresence mode="wait">
@@ -115,6 +151,24 @@ export function BookDetails({book, onEdit, onDelete}: BookDetailsProps) {
                     <span className="font-semibold">Descargar</span>
                   </a>
                 </p>
+                <div className="flex items-center gap-2 flex-wrap pt-2">
+                  <button
+                    onClick={handleSendToKindle}
+                    disabled={sendState === "sending"}
+                    className="border border-primary/40 text-primary hover:bg-primary/10 px-3 py-1.5 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendState === "sending" ? "Enviando a Kindle..." : "Enviar a Kindle"}
+                  </button>
+                  {sendState === "sent" && (
+                    <span className="text-xs text-emerald-600">Enviado deja el Kindle enchufado hasta que se indexe</span>
+                  )}
+                  {sendState === "error" && (
+                    <span className="text-xs text-destructive">{sendError}</span>
+                  )}
+                  {sendState === "idle" && !kindlePath && (
+                    <span className="text-xs text-muted-foreground">Conecta tu Kindle por USB para enviar libros</span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground mt-4 leading-relaxed">
                   {book.description}
                 </p>

@@ -1,4 +1,4 @@
-import { ChevronLeft, Tag, User, Library } from "lucide-react";
+import { ChevronLeft, Tag, User, Library, BookOpen } from "lucide-react";
 import { SidebarTooltip } from "./SidebarTooltip";
 
 interface SidebarProps {
@@ -10,6 +10,10 @@ interface SidebarProps {
   selectedAuthor: string | null;
   onSelectTag: (tag: string | null) => void;
   onSelectAuthor: (author: string | null) => void;
+  kindleConnected: boolean;
+  activeView: "library" | "kindle";
+  onSelectLibrary: () => void;
+  onSelectKindle: () => void;
 }
 
 export function Sidebar({ 
@@ -20,22 +24,29 @@ export function Sidebar({
   selectedTag, 
   selectedAuthor,
   onSelectTag,
-  onSelectAuthor
+  onSelectAuthor,
+  kindleConnected,
+  activeView,
+  onSelectLibrary,
+  onSelectKindle
 }: SidebarProps) {
   
   const handleSelectTag = (tag: string | null) => {
     onSelectTag(tag);
     onSelectAuthor(null); // Deselect author when a tag is selected
+    onSelectLibrary();
   };
 
   const handleSelectAuthor = (author: string | null) => {
     onSelectAuthor(author);
     onSelectTag(null); // Deselect tag when an author is selected
+    onSelectLibrary();
   };
 
   const handleSelectAll = () => {
     onSelectTag(null);
     onSelectAuthor(null);
+    onSelectLibrary();
   }
 
   return (
@@ -60,7 +71,7 @@ export function Sidebar({
         <SidebarTooltip content="All Books" show={isCollapsed}>
           <li 
             className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
-              selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+              activeView === "library" && selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
             }`}
             onClick={handleSelectAll}
           >
@@ -69,6 +80,23 @@ export function Sidebar({
           </li>
         </SidebarTooltip>
       </ul>
+
+      {/* Kindle */}
+      {kindleConnected && (
+        <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
+          <SidebarTooltip content="Kindle" show={isCollapsed}>
+            <li
+              className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                activeView === "kindle" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+              }`}
+              onClick={onSelectKindle}
+            >
+              <BookOpen className="w-5 h-5 flex-shrink-0" />
+              {!isCollapsed && <span>Kindle</span>}
+            </li>
+          </SidebarTooltip>
+        </ul>
+      )}
 
       {/* Tags Section */}
       <div className="flex items-center gap-2 mb-2">
