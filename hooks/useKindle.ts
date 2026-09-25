@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { KindleBook } from "@/types";
-import { detectKindle, listKindleBooks, deleteKindleBook } from "@/lib/tauri";
+import { detectKindle, listKindleBooks, deleteKindleBook, ejectKindle } from "@/lib/tauri";
 import { BookRepository } from "@/lib/db";
 
 function mergeMeta(
@@ -98,6 +98,16 @@ export function useKindle() {
     [removeBooks],
   );
 
+  const eject = useCallback(async (): Promise<boolean> => {
+    try {
+      await ejectKindle();
+      return true;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     if (path) {
       refreshBooks();
@@ -138,6 +148,7 @@ export function useKindle() {
     kindleAuthors,
     refreshBooks,
     saveMeta,
+    eject,
     removeBook,
     removeBooks,
   };

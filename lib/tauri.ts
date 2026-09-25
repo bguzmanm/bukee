@@ -19,6 +19,10 @@ export async function detectKindle(): Promise<string | null> {
   return invoke<string | null>("detect_kindle");
 }
 
+export async function ejectKindle(): Promise<void> {
+  return invoke<void>("eject_kindle");
+}
+
 export async function sendToKindle(filePath: string): Promise<string> {
   return invoke<string>("send_to_kindle", { filePath });
 }

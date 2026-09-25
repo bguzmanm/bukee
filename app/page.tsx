@@ -24,7 +24,7 @@ import { KindleBook, KindleStatusFilter } from "@/types";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { BookGridSkeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronsUpDown, LucideLibrary } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Loader2, LucideLibrary, Usb } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -58,15 +58,16 @@ const PANEL_MAX = 420;
 const PANEL_DEFAULT = 260;
 
 function useDetailsPanel() {
-  const [height, setHeight] = useState<number>(() => {
-    if (typeof window === "undefined") return PANEL_DEFAULT;
-    const saved = Number(window.localStorage.getItem("bukee-panel-height"));
-    return Number.isFinite(saved) && saved >= PANEL_MIN && saved <= PANEL_MAX
-      ? saved
-      : PANEL_DEFAULT;
-  });
+  const [height, setHeight] = useState<number>(PANEL_DEFAULT);
   const [collapsed, setCollapsed] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem("bukee-panel-height"));
+    if (Number.isFinite(saved) && saved >= PANEL_MIN && saved <= PANEL_MAX) {
+      setHeight(saved);
+    }
+  }, []);
 
   useEffect(() => {
     window.localStorage.setItem("bukee-panel-height", String(height));
@@ -153,6 +154,7 @@ export default function Home() {
   const [selectedKindleTag, setSelectedKindleTag] = useState<string | null>(null);
   const [selectedKindleAuthor, setSelectedKindleAuthor] = useState<string | null>(null);
   const [kindlePage, setKindlePage] = useState(1);
+  const [ejecting, setEjecting] = useState(false);
   const detailsPanel = useDetailsPanel();
   const kindle = useKindle();
 
@@ -389,6 +391,26 @@ export default function Home() {
       setSelectedKindleBook(null);
     }
     return ok;
+  };
+
+  const handleEjectKindle = async () => {
+    if (!kindle.connected) return;
+    const confirmed = await ask(
+      "¿Expulsar el Kindle de forma segura?\nPodrás desconectarlo por USB cuando termine.",
+      { title: "Bukee", kind: "warning" },
+    );
+    if (!confirmed) return;
+    setEjecting(true);
+    try {
+      const ok = await kindle.eject();
+      if (ok) {
+        toast.success("Kindle expulsado de forma segura");
+      } else {
+        toast.error("No se pudo expulsar el Kindle (¿está en uso?)");
+      }
+    } finally {
+      setEjecting(false);
+    }
   };
 
   const toggleLibrarySelect = (book: Book) => {
@@ -660,6 +682,19 @@ export default function Home() {
                       </button>
                     </>
                   )}
+                  <button
+                    onClick={handleEjectKindle}
+                    disabled={ejecting}
+                    className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm border bg-background hover:bg-muted shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Expulsa el Kindle de forma segura antes de desconectarlo"
+                  >
+                    {ejecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Usb className="w-4 h-4" />
+                    )}
+                    {ejecting ? "Expulsando..." : "Expulsar"}
+                  </button>
             </div>
           )}
           {!isKindleView && (

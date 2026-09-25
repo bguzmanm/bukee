@@ -132,6 +132,33 @@ fn detect_kindle() -> Option<String> {
 }
 
 #[tauri::command]
+fn eject_kindle() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let kindle = find_kindle()
+            .ok_or_else(|| "No se encontró un Kindle conectado por USB".to_string())?;
+        let path = kindle.to_string_lossy().into_owned();
+        let output = std::process::Command::new("/usr/sbin/diskutil")
+            .arg("eject")
+            .arg(&path)
+            .output()
+            .map_err(|e| format!("No se pudo ejecutar diskutil: {}", e))?;
+        if output.status.success() {
+            info!("Kindle expulsado de forma segura: {}", path);
+            return Ok(());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(format!("No se pudo expulsar el Kindle: {}", detail));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("La expulsión segura solo está disponible en macOS".to_string())
+    }
+}
+
+#[tauri::command]
 fn send_to_kindle(file_path: String) -> Result<String, String> {
     let kindle = find_kindle()
         .ok_or_else(|| "No se encontró un Kindle conectado por USB".to_string())?;
@@ -679,6 +706,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             parse_epub_metadata,
             detect_kindle,
+            eject_kindle,
             send_to_kindle,
             list_kindle_books,
             delete_kindle_book
