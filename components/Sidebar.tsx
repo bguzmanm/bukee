@@ -1,4 +1,5 @@
-import { ChevronLeft, Tag, User, Library, BookOpen } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, Tag, User, Library, BookOpen } from "lucide-react";
 import { SidebarTooltip } from "./SidebarTooltip";
 
 interface SidebarProps {
@@ -47,10 +48,13 @@ export function Sidebar({
     onSelectLibrary();
   }
 
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [authorsOpen, setAuthorsOpen] = useState(false);
+
   return (
     <aside
       className={`border-r p-3 bg-background transition-all duration-300 ease-in-out relative flex flex-col min-h-0 flex-shrink-0 ${
-        isCollapsed ? "w-[60px]" : "w-[250px]"
+        isCollapsed ? "w-[76px]" : "w-[250px]"
       }`}
     >
       <button
@@ -64,12 +68,14 @@ export function Sidebar({
         />
       </button>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+      <div className={`flex-1 min-h-0 overflow-y-auto ${isCollapsed ? "no-scrollbar pr-0" : "pr-1"}`}>
       {/* Navegación */}
       <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
         <SidebarTooltip content="Biblioteca" show={isCollapsed}>
           <li 
             className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+              isCollapsed ? "justify-center" : ""
+            } ${
               activeView === "library" && selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
             }`}
             onClick={handleSelectAll}
@@ -88,6 +94,8 @@ export function Sidebar({
           <SidebarTooltip content="Kindle" show={isCollapsed}>
             <li
               className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                isCollapsed ? "justify-center" : ""
+              } ${
                 activeView === "kindle" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
               }`}
               onClick={onSelectKindle}
@@ -107,19 +115,36 @@ export function Sidebar({
       {/* Filtros (etiquetas y autores aplican a la vista activa) */}
       <>
         {/* Tags Section */}
-      <div className="flex items-center gap-2 mb-2">
+      <button
+        onClick={() => setTagsOpen((o) => !o)}
+        className={`flex items-center gap-2 w-full mb-2 text-left ${
+          isCollapsed ? "justify-center" : ""
+        }`}
+      >
         <Tag className="w-5 h-5 flex-shrink-0" />
         {!isCollapsed && (
-          <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-            Etiquetas
-          </h3>
+          <>
+            <h3 className="text-xs font-semibold uppercase text-muted-foreground flex-1">
+              Etiquetas
+            </h3>
+            <ChevronRight
+              className={`w-4 h-4 text-muted-foreground transition-transform ${
+                tagsOpen ? "rotate-90" : ""
+              }`}
+            />
+          </>
         )}
-      </div>
+      </button>
+      {tagsOpen && (
       <ul className="list-none p-0 m-0 text-sm space-y-1">
-        {Object.entries(tags).map(([tag, count]) => (
+        {Object.entries(tags)
+          .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+          .map(([tag, count]) => (
           <SidebarTooltip key={tag} content={`${tag} (${count})`} show={isCollapsed}>
             <li
               className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                isCollapsed ? "justify-center" : ""
+              } ${
                 selectedTag === tag ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
               }`}
               onClick={() => handleSelectTag(tag)}
@@ -135,21 +160,39 @@ export function Sidebar({
           </SidebarTooltip>
         ))}
       </ul>
+      )}
 
       {/* Authors Section */}
-      <div className="flex items-center gap-2 mt-6 mb-2">
+      <button
+        onClick={() => setAuthorsOpen((o) => !o)}
+        className={`flex items-center gap-2 w-full mt-6 mb-2 text-left ${
+          isCollapsed ? "justify-center" : ""
+        }`}
+      >
         <User className="w-5 h-5 flex-shrink-0" />
         {!isCollapsed && (
-          <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-            Autores
-          </h3>
+          <>
+            <h3 className="text-xs font-semibold uppercase text-muted-foreground flex-1">
+              Autores
+            </h3>
+            <ChevronRight
+              className={`w-4 h-4 text-muted-foreground transition-transform ${
+                authorsOpen ? "rotate-90" : ""
+              }`}
+            />
+          </>
         )}
-      </div>
+      </button>
+      {authorsOpen && (
       <ul className="list-none p-0 m-0 text-sm space-y-1">
-        {Object.entries(authors).map(([author, count]) => (
+        {Object.entries(authors)
+          .sort(([a], [b]) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+          .map(([author, count]) => (
           <SidebarTooltip key={author} content={`${author} (${count})`} show={isCollapsed}>
             <li
               className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+                isCollapsed ? "justify-center" : ""
+              } ${
                 selectedAuthor === author ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
               }`}
               onClick={() => handleSelectAuthor(author)}
@@ -165,6 +208,7 @@ export function Sidebar({
           </SidebarTooltip>
         ))}
       </ul>
+      )}
       </>
       </div>
     </aside>

@@ -117,6 +117,13 @@ export function useKindle() {
     }
   }, [path, refreshBooks]);
 
+  useEffect(() => {
+    if (!path) return;
+    const onFocus = () => refreshBooks();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [path, refreshBooks]);
+
   const kindleTags = useMemo(() => {
     const counts: Record<string, number> = {};
     books.forEach((b) => {

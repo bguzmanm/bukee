@@ -20,11 +20,12 @@ import { useKindle } from "@/hooks/useKindle";
 import { KindleGrid } from "@/components/KindleGrid";
 import { KindleList } from "@/components/KindleList";
 import { KindleBookDetails } from "@/components/KindleBookDetails";
+import { StatsSheet } from "@/components/StatsSheet";
 import { KindleBook, KindleStatusFilter } from "@/types";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { BookGridSkeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronsUpDown, Loader2, LucideLibrary, Usb } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, BarChart3, LayoutGrid, List, Loader2, LucideLibrary, Plus, Usb } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -138,6 +139,7 @@ export default function Home() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -546,37 +548,53 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      <StatsSheet
+        open={statsOpen}
+        onOpenChange={setStatsOpen}
+        view={isKindleView ? "Kindle" : "Biblioteca"}
+        tags={isKindleView ? kindle.kindleTags : tags}
+        authors={isKindleView ? kindle.kindleAuthors : authors}
+      />
+
       <div className="flex h-full flex-col transition-all duration-300">
         <header className="flex-none flex items-center gap-3 px-4 bg-card border-b">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCreate}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md text-sm"
-            >
-              Añadir libro
-            </button>
-          </div>
+          <button
+            onClick={handleCreate}
+            className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Añadir libro
+          </button>
 
           <div className="ml-auto flex gap-2">
             <button
-              className={`px-3 py-1.5 rounded-full text-sm border-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
                 view === "grid"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
               onClick={() => setView("grid")}
             >
+              <LayoutGrid className="w-4 h-4" />
               Cuadrícula
             </button>
             <button
-              className={`px-3 py-1.5 rounded-full text-sm border-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
                 view === "list"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
               onClick={() => setView("list")}
             >
+              <List className="w-4 h-4" />
               Lista
+            </button>
+            <button
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+              onClick={() => setStatsOpen(true)}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Estadísticas
             </button>
             <div className="w-px bg-border mx-1" />
             <ModeToggle />
