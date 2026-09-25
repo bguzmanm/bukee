@@ -1,37 +1,49 @@
-# 📚 Bukee
+# Bukee
 
-**Bukee** es una aplicación de escritorio moderna y multiplataforma para gestionar tu biblioteca personal de libros electrónicos. Construida con **Tauri**, **Next.js** y **Tailwind CSS**, ofrece una experiencia de usuario fluida, elegante y nativa.
+**Bukee** es una aplicación de escritorio moderna y multiplataforma para gestionar tu biblioteca personal de libros electrónicos. Construida con **Tauri 2**, **Next.js** y **Tailwind CSS**, ofrece una experiencia de usuario fluida, elegante y nativa, pensada también para trabajar con un **Kindle** conectado.
+
+---
+
+![Dashboard](public/dashboard.png)
 
 ---
 
 ## ✨ Características
 
-- 📖 **Gestión de Biblioteca**: Organiza tus libros con facilidad, con la capacidad de editar y eliminar títulos.
-- 🚀 **Añadir Libros con Drag-and-Drop**: Simplemente arrastra y suelta tus archivos EPUB para añadirlos a tu biblioteca.
-- 🧩 **Extracción de Metadatos**: Bukee extrae automáticamente metadatos de tus EPUBs, incluyendo título, autor, portada, descripción e identificador (ISBN).
-- 🔍 **Búsqueda y Filtrado**: Encuentra libros rápidamente por título, autor, o filtra por etiquetas y autores.
-- 🎨 **Vistas Flexibles**: Alterna entre una vista de cuadrícula (Grid) visual y una lista (List) detallada.
-- 🌙 **Modo Oscuro/Claro**: Soporte nativo para temas claro y oscuro, adaptable a tu sistema.
-- ⚡ **Rendimiento Nativo**: Gracias a Tauri y Rust, la aplicación es ligera y rápida.
+- **Dashboard de inicio**: vista de bienvenida con métricas de la biblioteca, libros destacados, últimos agregados, libros en curso (ordenados de más a menos leído) y búsqueda directa.
+- **Gestión de Biblioteca**: organiza tus libros con facilidad, con la capacidad de editar y eliminar títulos.
+- **Añadir Libros con Drag-and-Drop**: arrastra y suelta archivos EPUB para añadirlos a tu biblioteca.
+- **Extracción de Metadatos**: Bukee extrae automáticamente metadatos de tus EPUBs, incluyendo título, autor, portada, descripción e identificador (ISBN).
+- **Búsqueda y Filtrado**: encuentra libros rápidamente por título, o filtra por etiquetas y autores desde el sidebar.
+- **Sidebar Colapsable**: expande o colapsa el sidebar para ganar espacio; las secciones de etiquetas y autores se pliegan por separado.
+- **Vistas Flexibles**: alterna entre vista de cuadrícula (Grid) visual y una lista (List) detallada.
+- **Estadísticas**: panel lateral con gráficos de títulos por etiqueta y por autor.
+- **Kindle integrado**: al conectar un Kindle, muestra su biblioteca con estados de lectura (en curso, leído, sin comenzar), progreso, etiquetas y expulsión segura.
+- **Paginado Dinámico**: los elementos por página se calculan según el tamaño de la ventana y el estado del sidebar, manteniendo cuadrícula y paginación siempre coherentes.
+- **Modo Oscuro/Claro**: soporte nativo para temas claro y oscuro, adaptable a tu sistema.
+- **Rendimiento Nativo**: gracias a Tauri y Rust, la aplicación es ligera y rápida.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Capa              | Tecnología                                   |
 | ----------------- | -------------------------------------------- |
-| Runtime           | [Tauri](https://tauri.app)                   |
+| Runtime           | [Tauri 2](https://tauri.app)                 |
 | Frontend          | [Next.js](https://nextjs.org) (App Router)   |
-| Estilos           | [Tailwind CSS](https://tailwindcss.com)      |
-| Componentes       | Basado en [Shadcn UI](https://ui.shadcn.com) |
+| UI                | [React 19](https://react.dev)                |
+| Estilos           | [Tailwind CSS](https://tailwindcss.com) v4   |
+| Componentes       | [Shadcn UI](https://ui.shadcn.com)           |
+| Animaciones       | [Framer Motion](https://www.framer.com/motion/) |
+| Gráficos          | [Recharts](https://recharts.org)             |
 | Backend           | Rust                                         |
 | Base de Datos     | SQLite (`tauri-plugin-sql`)                  |
 | Tooling           | [Bun](https://bun.sh)                        |
-| Lenguaje          | TypeScript + Rust                            |
+| Lenguajes         | TypeScript + Rust                            |
 
 ---
 
-## 🚀 Configuración y Ejecución
+## Configuración y Ejecución
 
 ### Prerrequisitos
 
@@ -39,7 +51,7 @@ Asegúrate de tener instalado lo siguiente:
 
 1.  **Rust & Cargo** (necesario para Tauri).
 2.  **Bun** (gestor de paquetes y runtime de JS).
-3.  **Dependencias de desarrollo del sistema** (consulta la [guía de Tauri](https://tauri.app/v1/guides/getting-started/prerequisites) para tu sistema operativo).
+3.  **Dependencias de desarrollo del sistema** (consulta la [guía de Tauri](https://tauri.app/start/prerequisites) para tu sistema operativo).
 
 ### Pasos para ejecutar
 
@@ -63,7 +75,7 @@ Asegúrate de tener instalado lo siguiente:
 
 ---
 
-## 📦 Construir para Producción
+## Construir para Producción
 
 Para generar el ejecutable de la aplicación para tu plataforma:
 
@@ -75,28 +87,36 @@ El ejecutable se generará en `src-tauri/target/release/bundle/`.
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 .
 ├── app/                  # Código fuente de Next.js (Frontend)
 │   ├── layout.tsx        # Layout principal de la aplicación
 │   ├── page.tsx          # Página principal y lógica de la UI
-│   └── globals.css       # Estilos globales de CSS
+│   └── globals.css       # Estilos globales y tokens de Tailwind v4
 ├── components/           # Componentes de UI reutilizables
-├── hooks/                # Hooks personalizados de React (ej. useBooks)
+│   └── ui/               # Componentes base de Shadcn
+├── hooks/                # Hooks personalizados (useBooks, useKindle)
 ├── lib/                  # Librerías y utilidades (db, epub, tauri)
-├── public/               # Archivos estáticos (imágenes, fuentes)
+├── public/               # Archivos estáticos (imágenes, portadas, epub)
 ├── src-tauri/            # Backend de Tauri (Rust)
 │   ├── src/
 │   │   ├── lib.rs        # Lógica principal del backend en Rust
 │   │   └── main.rs       # Punto de entrada de la aplicación Rust
 │   └── tauri.conf.json   # Configuración de la aplicación Tauri
-└── types/                # Definiciones de tipos (ej. Book)
+└── types/                # Definiciones de tipos (Book, KindleBook)
 ```
 
 ---
+## Capturas
 
-## 📄 Licencia
+| Inicio (Dashboard) | Kindle |
+| --- | --- |
+| ![Dashboard](public/dashboard.png) | ![Vista Kindle](public/kindle.png) |
+
+---
+
+## Licencia
 
 Este proyecto está bajo la licencia MIT.

@@ -21,6 +21,7 @@ import { KindleGrid } from "@/components/KindleGrid";
 import { KindleList } from "@/components/KindleList";
 import { KindleBookDetails } from "@/components/KindleBookDetails";
 import { StatsSheet } from "@/components/StatsSheet";
+import { Dashboard } from "@/components/Dashboard";
 import { KindleBook, KindleStatusFilter } from "@/types";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
@@ -52,11 +53,28 @@ function EmptyState({
   );
 }
 
-const ITEMS_PER_PAGE = 8;
-
 const PANEL_MIN = 90;
 const PANEL_MAX = 420;
 const PANEL_DEFAULT = 260;
+
+function useContentSize() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      setSize({ width: el.clientWidth, height: el.clientHeight });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return { ref, size };
+}
 
 function useDetailsPanel() {
   const [height, setHeight] = useState<number>(PANEL_DEFAULT);
@@ -148,7 +166,9 @@ export default function Home() {
   const [selectedBookIds, setSelectedBookIds] = useState<number[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [isKindleView, setIsKindleView] = useState(false);
+  const [mainView, setMainView] = useState<"home" | "library" | "kindle">("home");
+  const isHomeView = mainView === "home";
+  const isKindleView = mainView === "kindle";
   const [selectedKindleBook, setSelectedKindleBook] = useState<KindleBook | null>(null);
   const [kindleSelectionMode, setKindleSelectionMode] = useState(false);
   const [selectedKindlePaths, setSelectedKindlePaths] = useState<string[]>([]);
@@ -159,6 +179,23 @@ export default function Home() {
   const [ejecting, setEjecting] = useState(false);
   const detailsPanel = useDetailsPanel();
   const kindle = useKindle();
+  const { ref: contentRef, size: contentSize } = useContentSize();
+
+  const { itemsPerPage, gridColumns } = useMemo(() => {
+    const w = contentSize.width || 900;
+    const h = contentSize.height || 640;
+    const cols = Math.max(2, Math.floor(w / 196));
+    if (view === "list") {
+      return { itemsPerPage: Math.max(4, Math.floor(h / 90)), gridColumns: cols };
+    }
+    const rows = Math.max(2, Math.floor(h / 330));
+    return { itemsPerPage: cols * rows, gridColumns: cols };
+  }, [contentSize, view]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setKindlePage(1);
+  }, [itemsPerPage]);
 
   const filteredKindleBooks = useMemo(() => {
     return kindle.books.filter((b) => {
@@ -176,12 +213,12 @@ export default function Home() {
   }, [kindle.books, kindleStatusFilter, selectedKindleTag, selectedKindleAuthor]);
 
   const { paginatedKindleBooks, kindleTotalPages } = useMemo(() => {
-    const startIndex = (kindlePage - 1) * ITEMS_PER_PAGE;
+    const startIndex = (kindlePage - 1) * itemsPerPage;
     return {
-      paginatedKindleBooks: filteredKindleBooks.slice(startIndex, startIndex + ITEMS_PER_PAGE),
-      kindleTotalPages: Math.max(1, Math.ceil(filteredKindleBooks.length / ITEMS_PER_PAGE)),
+      paginatedKindleBooks: filteredKindleBooks.slice(startIndex, startIndex + itemsPerPage),
+      kindleTotalPages: Math.max(1, Math.ceil(filteredKindleBooks.length / itemsPerPage)),
     };
-  }, [filteredKindleBooks, kindlePage]);
+  }, [filteredKindleBooks, kindlePage, itemsPerPage]);
   
   // Pagination & Sorting State
   const [currentPage, setCurrentPage] = useState(1);
@@ -346,11 +383,11 @@ export default function Home() {
 
   // Pagination Logic
   const paginatedBooks = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return sortedBooks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [sortedBooks, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedBooks.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedBooks, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(sortedBooks.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(sortedBooks.length / itemsPerPage);
 
   const handleSort = (key: keyof Book) => {
     let direction: SortDirection = "asc";
@@ -600,13 +637,15 @@ export default function Home() {
             <ModeToggle />
           </div>
 
-          <input
-            type="text"
-            placeholder="Buscar..."
-            className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border transition-all"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          {!isHomeView && (
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border transition-all"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          )}
         </header>
 
         <div className="flex flex-1 min-h-0">
@@ -628,18 +667,22 @@ export default function Home() {
           kindleConnected={kindle.connected}
           kindleCount={kindle.books.length}
           libraryCount={books.length}
-          activeView={isKindleView ? "kindle" : "library"}
+          activeView={mainView}
+          onSelectHome={() => {
+            setSearch("");
+            setMainView("home");
+          }}
           onSelectLibrary={() => {
             setSelectedTag(null);
             setSelectedAuthor(null);
-            setIsKindleView(false);
+            setMainView("library");
           }}
           onSelectKindle={() => {
             setSelectedBook(null);
             setSelectedKindleBook(null);
             setSelectedKindleTag(null);
             setSelectedKindleAuthor(null);
-            setIsKindleView(true);
+            setMainView("kindle");
           }}
         />
 
@@ -715,7 +758,7 @@ export default function Home() {
                   </button>
             </div>
           )}
-          {!isKindleView && (
+          {!isHomeView && !isKindleView && (
             <div className="flex items-center gap-2 px-4 py-2 border-b bg-card flex-none">
               <button
                 onClick={() => {
@@ -759,8 +802,23 @@ export default function Home() {
               )}
             </div>
           )}
-          <div className="flex-1 overflow-y-auto p-0">
-            {isKindleView ? (
+          <div className="flex-1 overflow-y-auto p-0" ref={contentRef}>
+            {isHomeView ? (
+              <Dashboard
+                books={books}
+                tags={tags}
+                authors={authors}
+                kindleBooks={kindle.books}
+                onOpenBook={(b) => {
+                  setSelectedBook(b);
+                  setMainView("library");
+                }}
+                onSearch={(q) => {
+                  setSearch(q);
+                  setMainView("library");
+                }}
+              />
+            ) : isKindleView ? (
               <>
                 {kindle.loading && <BookGridSkeleton count={8} />}
                 {kindle.error && (
@@ -786,6 +844,7 @@ export default function Home() {
                       selectionMode={kindleSelectionMode}
                       selectedPaths={selectedKindlePaths}
                       onToggleSelect={toggleKindleSelect}
+                      columns={gridColumns}
                     />
                   ) : (
                     <KindleList
@@ -836,6 +895,7 @@ export default function Home() {
                           selectionMode={librarySelectionMode}
                           selectedIds={selectedBookIds}
                           onToggleSelect={toggleLibrarySelect}
+                          columns={gridColumns}
                         />
                       </motion.div>
                     ) : (
@@ -863,21 +923,23 @@ export default function Home() {
             )}
           </div>
 
-          {!isKindleView ? (
+          {!isHomeView && (!isKindleView ? (
              <Pagination 
                currentPage={currentPage}
                totalPages={totalPages}
                onPageChange={setCurrentPage}
+               perPage={itemsPerPage}
              />
           ) : (
-            filteredKindleBooks.length > ITEMS_PER_PAGE && (
+            filteredKindleBooks.length > itemsPerPage && (
               <Pagination
                 currentPage={kindlePage}
                 totalPages={kindleTotalPages}
                 onPageChange={setKindlePage}
+                perPage={itemsPerPage}
               />
             )
-          )}
+          ))}
         </main>
         </div>
 
@@ -891,7 +953,7 @@ export default function Home() {
             onPointerDown={detailsPanel.onPointerDown}
           />
           <div className="flex-1 min-h-0">
-            {isKindleView ? (
+            {isHomeView ? null : isKindleView ? (
               <KindleBookDetails
                 book={selectedKindleBook}
                 onDelete={handleKindleDelete}

@@ -9,16 +9,19 @@ interface BookGridProps {
   selectionMode?: boolean;
   selectedIds?: number[];
   onToggleSelect?: (book: Book) => void;
+  columns?: number;
 }
 
-export function BookGrid({books, onSelect, selectionMode = false, selectedIds = [], onToggleSelect}: BookGridProps) {
+export function BookGrid({books, onSelect, selectionMode = false, selectedIds = [], onToggleSelect, columns}: BookGridProps) {
   return (
     <div>
       <motion.div
         layout
         className="p-6 grid gap-4"
         style={{
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+          gridTemplateColumns: columns
+            ? `repeat(${columns}, minmax(0, 1fr))`
+            : "repeat(auto-fill, minmax(180px, 1fr))",
         }}
       >
         <AnimatePresence>

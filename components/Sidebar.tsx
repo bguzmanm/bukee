@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Tag, User, Library, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, Tag, User, Library, BookOpen } from "lucide-react";
 import { SidebarTooltip } from "./SidebarTooltip";
 
 interface SidebarProps {
@@ -14,7 +14,8 @@ interface SidebarProps {
   kindleConnected: boolean;
   kindleCount: number;
   libraryCount: number;
-  activeView: "library" | "kindle";
+  activeView: "home" | "library" | "kindle";
+  onSelectHome: () => void;
   onSelectLibrary: () => void;
   onSelectKindle: () => void;
 }
@@ -32,6 +33,7 @@ export function Sidebar({
   kindleCount,
   libraryCount,
   activeView,
+  onSelectHome,
   onSelectLibrary,
   onSelectKindle
 }: SidebarProps) {
@@ -71,6 +73,20 @@ export function Sidebar({
       <div className={`flex-1 min-h-0 overflow-y-auto ${isCollapsed ? "no-scrollbar pr-0" : "pr-1"}`}>
       {/* Navegación */}
       <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
+        <SidebarTooltip content="Inicio" show={isCollapsed}>
+          <li
+            className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
+              isCollapsed ? "justify-center" : ""
+            } ${
+              activeView === "home" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
+            }`}
+            onClick={onSelectHome}
+          >
+            <Home className="w-5 h-5 flex-shrink-0" />
+            {!isCollapsed && <span>Inicio</span>}
+          </li>
+        </SidebarTooltip>
+
         <SidebarTooltip content="Biblioteca" show={isCollapsed}>
           <li 
             className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${

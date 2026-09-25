@@ -37,6 +37,7 @@ interface KindleGridProps {
   selectionMode?: boolean;
   selectedPaths?: string[];
   onToggleSelect?: (book: KindleBook) => void;
+  columns?: number;
 }
 
 export function KindleGrid({
@@ -46,6 +47,7 @@ export function KindleGrid({
   selectionMode = false,
   selectedPaths = [],
   onToggleSelect,
+  columns,
 }: KindleGridProps) {
   if (books.length === 0) {
     return <p className="p-6 text-muted-foreground">No hay libros en el Kindle</p>;
@@ -56,7 +58,9 @@ export function KindleGrid({
       layout
       className="p-6 grid gap-4"
       style={{
-        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gridTemplateColumns: columns
+          ? `repeat(${columns}, minmax(0, 1fr))`
+          : "repeat(auto-fill, minmax(180px, 1fr))",
       }}
     >
       <AnimatePresence>
