@@ -3,6 +3,9 @@ import {motion, AnimatePresence} from "framer-motion";
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useEffect, useState } from "react";
 import { detectKindle, sendToKindle } from "@/lib/tauri";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { FolderOpen, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 
 interface BookDetailsProps {
@@ -15,7 +18,21 @@ interface BookDetailsProps {
 export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsProps) {
   const [kindlePath, setKindlePath] = useState<string | null>(null);
   const [sendState, setSendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [revealing, setRevealing] = useState(false);
   const [sendError, setSendError] = useState("");
+
+  async function handleReveal() {
+    if (!book?.path) return;
+    setRevealing(true);
+    try {
+      await revealItemInDir(book.path);
+    } catch (err) {
+      console.error(err);
+      toast.error("No se pudo abrir la carpeta del archivo");
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   useEffect(() => {
     detectKindle().then(setKindlePath).catch(() => setKindlePath(null));
@@ -39,6 +56,7 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
       }
       await sendToKindle(book.path);
       setSendState("sent");
+      toast.success("Enviado al Kindle. Déjalo enchufado hasta que se indexe.");
       onKindleSent?.();
     } catch (err) {
       console.error(err);
@@ -47,7 +65,7 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
     }
   }
   return (
-    <section className="col-span-2 border-t bg-background/50 backdrop-blur-sm overflow-hidden relative">
+    <section className="col-span-2 h-full border-t bg-background/50 backdrop-blur-sm overflow-hidden relative">
       <AnimatePresence mode="wait">
         {!book ? (
           <motion.div
@@ -78,7 +96,7 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
                 onClick={() => onEdit(book)}
                 className="px-3 py-1 text-xs rounded border bg-background hover:bg-muted shadow-sm"
               >
-                Edit
+                Editar
               </button>
               <button
                 onClick={async () => {
@@ -88,7 +106,7 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
                 }}
                 className="px-3 py-1 text-xs rounded border border-destructive text-destructive hover:bg-destructive/10 shadow-sm"
               >
-                Delete
+                Eliminar
               </button>
             </div>
 
@@ -129,16 +147,16 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
                   <span className="font-semibold">Autor:</span> {book.author}
                 </p>
                 <p className="text-sm">
-                  <span className="font-semibold">Rating:</span>{" "}
+                  <span className="font-semibold">Puntuación:</span>{" "}
                   <span className="text-yellow-500">
-                    {"★".repeat(book.rating)}
+                    {"★".repeat(Math.min(book.rating, 5))}
                   </span>
                   <span className="text-muted-foreground/30">
-                    {"☆".repeat(5 - book.rating)}
+                    {"☆".repeat(Math.max(0, Math.min(5 - book.rating, 5)))}
                   </span>
                 </p>
                 <p className="text-sm">
-                  <span className="font-semibold">Tags:</span>{" "}
+                  <span className="font-semibold">Etiquetas:</span>{" "}
                   {book.tags.map((tag, i) => (
                     <span key={i}
                           className="inline-block bg-muted px-2 py-0.5 rounded-full text-xs mr-1">
@@ -147,9 +165,18 @@ export function BookDetails({book, onEdit, onDelete, onKindleSent}: BookDetailsP
                   ))}
                 </p>
                 <p className="text-sm">
-                  <a href={book.path} className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md text-sm">
-                    <span className="font-semibold">Descargar</span>
-                  </a>
+                  <button
+                    onClick={handleReveal}
+                    disabled={revealing}
+                    className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {revealing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FolderOpen className="w-4 h-4" />
+                    )}
+                    <span className="font-semibold">Abrir en carpeta</span>
+                  </button>
                 </p>
                 <div className="flex items-center gap-2 flex-wrap pt-2">
                   <button

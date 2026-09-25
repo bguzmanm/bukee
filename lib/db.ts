@@ -106,4 +106,45 @@ export const BookRepository = {
     const db = await getDb();
     await db.execute("DELETE FROM books WHERE id = $1", [id]);
   },
+
+  async deleteByIds(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = await getDb();
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    await db.execute(`DELETE FROM books WHERE id IN (${placeholders})`, ids);
+  },
+
+  async getAllKindleMeta(): Promise<Record<string, { tags: string[]; author: string | null }>> {
+    const db = await getDb();
+    const result: { path: string; tags: string | null; author: string | null }[] = await db.select(
+      "SELECT path, tags, author FROM kindle_meta",
+    );
+    const map: Record<string, { tags: string[]; author: string | null }> = {};
+    result.forEach((row) => {
+      map[row.path] = {
+        tags: row.tags ? row.tags.split(",") : [],
+        author: row.author || null,
+      };
+    });
+    return map;
+  },
+
+  async saveKindleMeta(
+    path: string,
+    tags: string[],
+    author: string | null,
+  ): Promise<void> {
+    const db = await getDb();
+    await db.execute(
+      "INSERT INTO kindle_meta (path, tags, author) VALUES ($1, $2, $3) ON CONFLICT(path) DO UPDATE SET tags = $2, author = $3",
+      [path, tags.join(","), author],
+    );
+  },
+
+  async deleteKindleMetas(paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+    const db = await getDb();
+    const placeholders = paths.map((_, i) => `$${i + 1}`).join(",");
+    await db.execute(`DELETE FROM kindle_meta WHERE path IN (${placeholders})`, paths);
+  },
 };

@@ -11,6 +11,8 @@ interface SidebarProps {
   onSelectTag: (tag: string | null) => void;
   onSelectAuthor: (author: string | null) => void;
   kindleConnected: boolean;
+  kindleCount: number;
+  libraryCount: number;
   activeView: "library" | "kindle";
   onSelectLibrary: () => void;
   onSelectKindle: () => void;
@@ -26,32 +28,28 @@ export function Sidebar({
   onSelectTag,
   onSelectAuthor,
   kindleConnected,
+  kindleCount,
+  libraryCount,
   activeView,
   onSelectLibrary,
   onSelectKindle
 }: SidebarProps) {
   
   const handleSelectTag = (tag: string | null) => {
-    onSelectTag(tag);
-    onSelectAuthor(null); // Deselect author when a tag is selected
-    onSelectLibrary();
+    onSelectTag(selectedTag === tag ? null : tag);
   };
 
   const handleSelectAuthor = (author: string | null) => {
-    onSelectAuthor(author);
-    onSelectTag(null); // Deselect tag when an author is selected
-    onSelectLibrary();
+    onSelectAuthor(selectedAuthor === author ? null : author);
   };
 
   const handleSelectAll = () => {
-    onSelectTag(null);
-    onSelectAuthor(null);
     onSelectLibrary();
   }
 
   return (
     <aside
-      className={`border-r p-3 bg-background transition-all duration-300 ease-in-out relative ${
+      className={`border-r p-3 bg-background transition-all duration-300 ease-in-out relative flex flex-col min-h-0 flex-shrink-0 ${
         isCollapsed ? "w-[60px]" : "w-[250px]"
       }`}
     >
@@ -66,9 +64,10 @@ export function Sidebar({
         />
       </button>
 
-      {/* All Books */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+      {/* Navegación */}
       <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
-        <SidebarTooltip content="All Books" show={isCollapsed}>
+        <SidebarTooltip content="Biblioteca" show={isCollapsed}>
           <li 
             className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
               activeView === "library" && selectedTag === null && selectedAuthor === null ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted"
@@ -76,14 +75,16 @@ export function Sidebar({
             onClick={handleSelectAll}
           >
             <Library className="w-5 h-5 flex-shrink-0" />
-            {!isCollapsed && <span>All Books</span>}
+            {!isCollapsed && (
+              <span className="flex-1 flex justify-between items-center">
+                <span>Biblioteca</span>
+                <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{libraryCount}</span>
+              </span>
+            )}
           </li>
         </SidebarTooltip>
-      </ul>
 
-      {/* Kindle */}
-      {kindleConnected && (
-        <ul className="list-none p-0 m-0 text-sm space-y-1 mb-6">
+        {kindleConnected && (
           <SidebarTooltip content="Kindle" show={isCollapsed}>
             <li
               className={`px-2 py-1 rounded cursor-pointer flex items-center gap-2 ${
@@ -92,18 +93,25 @@ export function Sidebar({
               onClick={onSelectKindle}
             >
               <BookOpen className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && <span>Kindle</span>}
+              {!isCollapsed && (
+                <span className="flex-1 flex justify-between items-center">
+                  <span>Kindle</span>
+                  <span className="text-muted-foreground text-xs bg-muted px-1.5 rounded-full">{kindleCount}</span>
+                </span>
+              )}
             </li>
           </SidebarTooltip>
-        </ul>
-      )}
+        )}
+      </ul>
 
-      {/* Tags Section */}
+      {/* Filtros (etiquetas y autores aplican a la vista activa) */}
+      <>
+        {/* Tags Section */}
       <div className="flex items-center gap-2 mb-2">
         <Tag className="w-5 h-5 flex-shrink-0" />
         {!isCollapsed && (
           <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-            Tags
+            Etiquetas
           </h3>
         )}
       </div>
@@ -116,7 +124,7 @@ export function Sidebar({
               }`}
               onClick={() => handleSelectTag(tag)}
             >
-              <span className="flex-shrink-0">🏷️</span>
+              <span className="flex-shrink-0 text-muted-foreground/70"><Tag className="w-4 h-4" /></span>
               {!isCollapsed && (
                 <span className="flex-1 flex justify-between">
                   <span className="truncate">{tag}</span>
@@ -133,7 +141,7 @@ export function Sidebar({
         <User className="w-5 h-5 flex-shrink-0" />
         {!isCollapsed && (
           <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-            Authors
+            Autores
           </h3>
         )}
       </div>
@@ -146,7 +154,7 @@ export function Sidebar({
               }`}
               onClick={() => handleSelectAuthor(author)}
             >
-              <span className="flex-shrink-0">✍️</span>
+              <span className="flex-shrink-0 text-muted-foreground/70"><User className="w-4 h-4" /></span>
               {!isCollapsed && (
                 <span className="flex-1 flex justify-between">
                   <span className="truncate">{author}</span>
@@ -157,6 +165,8 @@ export function Sidebar({
           </SidebarTooltip>
         ))}
       </ul>
+      </>
+      </div>
     </aside>
   );
 }

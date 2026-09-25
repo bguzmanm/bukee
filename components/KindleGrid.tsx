@@ -1,6 +1,8 @@
 import { KindleBook } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen, Check, Circle } from "lucide-react";
+import { BookOpen, Circle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 export function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -14,26 +16,17 @@ const STATUS_LABELS: Record<NonNullable<KindleBook["status"]>, string> = {
   sin_comenzar: "Sin comenzar",
 };
 
-const STATUS_COLORS: Record<NonNullable<KindleBook["status"]>, string> = {
-  en_curso: "text-green-500",
-  leido: "text-muted-foreground",
-  sin_comenzar: "text-muted-foreground/70",
-};
-
 export function KindleStatusBadge({ status }: { status?: KindleBook["status"] }) {
   const s = status ?? "sin_comenzar";
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-xs ${STATUS_COLORS[s]} ${
-        s === "en_curso" ? "font-medium" : ""
-      }`}
+    <Badge
+      variant={s === "en_curso" ? "default" : "secondary"}
+      className={`gap-1.5 ${s === "en_curso" ? "" : "text-muted-foreground"}`}
       title={`Leyendo: ${STATUS_LABELS[s]}`}
     >
-      <Circle
-        className={`w-2 h-2 ${s === "en_curso" ? "fill-green-500" : "fill-current opacity-60"}`}
-      />
+      <Circle className={`w-2 h-2 ${s === "en_curso" ? "fill-current" : "fill-current opacity-60"}`} />
       {STATUS_LABELS[s]}
-    </span>
+    </Badge>
   );
 }
 
@@ -70,13 +63,25 @@ export function KindleGrid({
         {books.map((book, index) => {
           const isSelected = selectionMode && selectedPaths.includes(book.path);
           return (
-            <motion.button
+            <motion.div
               key={book.path ? `${book.path}-${index}` : `kindle-${index}`}
               layout
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (selectionMode && onToggleSelect) {
+                    onToggleSelect(book);
+                  } else {
+                    onSelect(book);
+                  }
+                }
+              }}
               onClick={() => {
                 if (selectionMode && onToggleSelect) {
                   onToggleSelect(book);
@@ -84,7 +89,7 @@ export function KindleGrid({
                   onSelect(book);
                 }
               }}
-              className={`text-left rounded-xl shadow-md hover:shadow-lg transition-shadow transform hover:-translate-y-1 overflow-hidden border bg-card ${
+              className={`cursor-pointer text-left rounded-xl shadow-md hover:shadow-lg transition-shadow transform hover:-translate-y-1 overflow-hidden border bg-card ${
                 selectionMode && isSelected
                   ? "border-primary ring-2 ring-primary"
                   : selected?.path === book.path
@@ -107,13 +112,15 @@ export function KindleGrid({
                 )}
                 {selectionMode && (
                   <div
-                    className={`absolute top-2 left-2 w-6 h-6 rounded-md border-2 flex items-center justify-center backdrop-blur-sm transition-colors ${
-                      isSelected
-                        ? "bg-primary border-primary"
-                        : "bg-background/70 border-muted-foreground/50"
-                    }`}
+                    className="absolute top-2 left-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {isSelected && <Check className="w-4 h-4 text-primary-foreground" />}
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect?.(book)}
+                      aria-label={book.title}
+                      className="bg-background/80 backdrop-blur-sm"
+                    />
                   </div>
                 )}
               </div>
@@ -129,7 +136,7 @@ export function KindleGrid({
                 </span>
                 <KindleStatusBadge status={book.status} />
               </p>
-              {typeof book.progress === "number" ? (
+              {book.status !== "sin_comenzar" && typeof book.progress === "number" ? (
                 <div className="mx-4 mb-3 h-1 rounded-full bg-muted overflow-hidden" title={`Progreso aprox. ${book.progress}%`}>
                   <div
                     className="h-full bg-primary transition-all"
@@ -139,7 +146,7 @@ export function KindleGrid({
               ) : (
                 <div className="mb-3" />
               )}
-            </motion.button>
+            </motion.div>
           );
         })}
       </AnimatePresence>

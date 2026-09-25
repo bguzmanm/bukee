@@ -27,41 +27,60 @@ export function useBooks() {
       setAuthors(authorsData);
     } catch (err) {
       console.error(err);
-      setError("Failed to load data");
+      setError("No se pudieron cargar los libros");
     } finally {
       setLoading(false);
     }
   }
 
-  async function addBook(book: Omit<Book, "id">) {
+  async function addBook(book: Omit<Book, "id">): Promise<boolean> {
     try {
       await BookRepository.create(book);
       await loadData();
+      return true;
     } catch (err) {
       console.error(err);
-      setError("Failed to add book");
+      setError("No se pudo añadir el libro");
+      return false;
     }
   }
 
-  async function updateBook(book: Book) {
+  async function updateBook(book: Book): Promise<boolean> {
     try {
       await BookRepository.update(book);
       await loadData();
+      return true;
     } catch (err) {
       console.error(err);
-      setError("Failed to update book");
+      setError("No se pudo actualizar el libro");
+      return false;
     }
   }
 
-  async function deleteBook(id: number) {
+  async function deleteBook(id: number): Promise<boolean> {
     try {
       await BookRepository.deleteById(id);
       await loadData();
+      return true;
     } catch (err) {
       console.error(err);
-      setError("Failed to delete book");
+      setError("No se pudo eliminar el libro");
+      return false;
     }
   }
 
-  return { books, tags, authors, loading, error, refresh: loadData, addBook, updateBook, deleteBook };
+  async function deleteBooks(ids: number[]): Promise<boolean> {
+    if (ids.length === 0) return true;
+    try {
+      await BookRepository.deleteByIds(ids);
+      await loadData();
+      return true;
+    } catch (err) {
+      console.error(err);
+      setError("No se pudieron eliminar los libros");
+      return false;
+    }
+  }
+
+  return { books, tags, authors, loading, error, refresh: loadData, addBook, updateBook, deleteBook, deleteBooks };
 }

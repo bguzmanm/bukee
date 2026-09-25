@@ -11,6 +11,7 @@
     "sql:allow-execute",
     "sql:allow-select",
     "fs:allow-home-read",
-    "dialog:default"
+    "dialog:default",
+    "opener:allow-reveal-item-in-dir"
   ]
 }

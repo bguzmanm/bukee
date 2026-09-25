@@ -1,15 +1,19 @@
 import { Book, SortConfig } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, BookOpen } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface BookListProps {
   books: Book[];
   onSelect: (book: Book) => void;
   sortConfig: SortConfig | null;
   onSort: (key: keyof Book) => void;
+  selectionMode?: boolean;
+  selectedIds?: number[];
+  onToggleSelect?: (book: Book) => void;
 }
 
-export function BookList({ books, onSelect, sortConfig, onSort }: BookListProps) {
+export function BookList({ books, onSelect, sortConfig, onSort, selectionMode = false, selectedIds = [], onToggleSelect }: BookListProps) {
   
   const getSortIcon = (key: keyof Book) => {
     if (sortConfig?.key !== key) {
@@ -48,12 +52,17 @@ export function BookList({ books, onSelect, sortConfig, onSort }: BookListProps)
     <table className="w-full border-collapse text-sm">
       <thead>
         <tr>
+          {selectionMode && (
+            <th className="bg-muted text-muted-foreground font-semibold text-xs uppercase px-4 py-3 text-left w-12">
+              Selección
+            </th>
+          )}
           {/* No sorting for cover image */}
           {renderHeader("Portada")}
           {renderHeader("Título", "title")}
           {renderHeader("Autor", "author")}
-          {renderHeader("Rating", "rating")}
-          {renderHeader("Tags", "tags")}
+          {renderHeader("Puntuación", "rating")}
+          {renderHeader("Etiquetas", "tags")}
         </tr>
       </thead>
       <motion.tbody layout>
@@ -67,23 +76,44 @@ export function BookList({ books, onSelect, sortConfig, onSort }: BookListProps)
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
               className="hover:bg-muted/50 cursor-pointer transition-colors border-b last:border-0"
-              onClick={() => onSelect(book)}
+              onClick={() => {
+                if (selectionMode && onToggleSelect) {
+                  onToggleSelect(book);
+                } else {
+                  onSelect(book);
+                }
+              }}
             >
+              {selectionMode && (
+                <td className="px-4 py-3">
+                  <Checkbox
+                    checked={selectedIds.includes(book.id)}
+                    onCheckedChange={() => onToggleSelect?.(book)}
+                    aria-label={book.title}
+                  />
+                </td>
+              )}
               <td className="px-4 py-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={book.cover}
-                  alt={book.title}
-                  className="w-[50px] h-[70px] rounded-md object-cover"
-                />
+                {book.cover ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={book.cover}
+                    alt={book.title}
+                    className="w-[50px] h-[70px] rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="w-[50px] h-[70px] rounded-md bg-muted flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                )}
               </td>
-              <td className="px-4 py-3 font-medium">{book.title}</td>
-              <td className="px-4 py-3">{book.author}</td>
+              <td className="px-4 py-3 font-medium" title={book.title}>{book.title}</td>
+              <td className="px-4 py-3" title={book.author}>{book.author}</td>
               <td className="px-4 py-3">
                 <span className="flex">
-                  {"★".repeat(book.rating)}
+                  {"★".repeat(Math.min(book.rating, 5))}
                   <span className="text-muted-foreground/30">
-                    {"☆".repeat(5 - book.rating)}
+                    {"☆".repeat(Math.max(0, Math.min(5 - book.rating, 5)))}
                   </span>
                 </span>
               </td>

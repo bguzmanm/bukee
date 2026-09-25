@@ -1,5 +1,26 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { Book } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface BookFormProps {
   initialData?: Book | null;
@@ -18,6 +39,7 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
     description: "",
     identifier: "",
   });
+  const [open, setOpen] = useState(true);
 
   useEffect(() => {
     if (initialData) {
@@ -36,7 +58,7 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const bookPayload = {
       title: formData.title,
       author: formData.author,
@@ -53,130 +75,134 @@ export function BookForm({ initialData, onSubmit, onCancel }: BookFormProps) {
     } else {
       onSubmit(bookPayload);
     }
+    setOpen(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl border flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="p-6 border-b flex-none">
-          <h2 className="text-xl font-bold">
-            {initialData ? "Edit Book" : "Add New Book"}
-          </h2>
-        </div>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) onCancel();
+      }}
+    >
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {initialData ? "Editar libro" : "Añadir libro"}
+          </DialogTitle>
+          <DialogDescription>
+            Completa los datos. Los campos marcados son obligatorios.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto flex-1">
-          <form id="book-form" onSubmit={handleSubmit} className="space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <input
-                  required
-                  className="w-full p-2 rounded border bg-input"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Author</label>
-                <input
-                  required
-                  className="w-full p-2 rounded border bg-input"
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Rating (0-5)</label>
-                <input
-                  className="w-full p-2 rounded border bg-input"
-                  type="number"
-                  min="0"
-                  max="5"
-                  value={formData.rating}
-                  onChange={(e) => setFormData({ ...formData, rating: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Identifier (ISBN)</label>
-                <input
-                  className="w-full p-2 rounded border bg-input"
-                  value={formData.identifier}
-                  onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-                />
-              </div>
-            </div>
-
+        <form id="book-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Tags (comma separated)</label>
-              <input
-                className="w-full p-2 rounded border bg-input"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                placeholder="sci-fi, classic"
+              <Label htmlFor="book-title">Título</Label>
+              <Input
+                id="book-title"
+                required
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </div>
-
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <textarea
-                className="w-full p-2 rounded border bg-input min-h-[100px]"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              ></textarea>
+              <Label htmlFor="book-author">Autor</Label>
+              <Input
+                id="book-author"
+                required
+                value={formData.author}
+                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+              />
             </div>
+          </div>
 
-            <div className="border-t pt-4 space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground">File Paths</h3>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium">Cover URL / Path</label>
-                  <input
-                    className="w-full p-2 rounded border bg-input text-sm font-mono"
-                    value={formData.cover}
-                    onChange={(e) => setFormData({ ...formData, cover: e.target.value })}
-                    placeholder="/covers/default.jpg"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-medium">EPub File Path</label>
-                  <input
-                      className="w-full p-2 rounded border bg-input text-sm font-mono"
-                      value={formData.path}
-                      onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                      placeholder="/books/my-book.epub"
-                  />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Puntuación</Label>
+              <Select
+                value={String(formData.rating)}
+                onValueChange={(v) => setFormData({ ...formData, rating: parseInt(v) || 0 })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona una puntuación" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4, 5].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n === 0 ? "Sin calificar" : `${n} ${n === 1 ? "estrella" : "estrellas"}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="book-identifier">Identificador (ISBN)</Label>
+              <Input
+                id="book-identifier"
+                value={formData.identifier}
+                onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-tags">Etiquetas (separadas por coma)</Label>
+            <Input
+              id="book-tags"
+              value={formData.tags}
+              onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+              placeholder="ciencia ficción, clásico"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="book-description">Descripción</Label>
+            <Textarea
+              id="book-description"
+              className="min-h-[100px]"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">Rutas de archivo</h3>
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="book-cover" className="text-xs">Portada (URL o ruta)</Label>
+                <Input
+                  id="book-cover"
+                  className="text-sm font-mono"
+                  value={formData.cover}
+                  onChange={(e) => setFormData({ ...formData, cover: e.target.value })}
+                  placeholder="/covers/default.jpg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="book-path" className="text-xs">Ruta del archivo EPUB</Label>
+                <Input
+                  id="book-path"
+                  className="text-sm font-mono"
+                  value={formData.path}
+                  onChange={(e) => setFormData({ ...formData, path: e.target.value })}
+                  placeholder="/books/mi-libro.epub"
+                />
               </div>
             </div>
-          </form>
-        </div>
+          </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t bg-muted/10 flex justify-end gap-2 flex-none">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 rounded border hover:bg-muted transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="book-form"
-            className="px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Save
-          </button>
-        </div>
-
-      </div>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { setOpen(false); onCancel(); }}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="book-form">
+              {initialData ? "Guardar cambios" : "Añadir"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

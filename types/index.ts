@@ -29,6 +29,7 @@ export interface KindleBook {
   position?: number | null;
   last_read?: number | null;
   progress?: number | null;
+  tags?: string[];
 }
 
 export type KindleStatusFilter = "todos" | "en_curso" | "leido" | "sin_comenzar";

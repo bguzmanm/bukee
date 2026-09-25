@@ -21,7 +21,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       </button>
       
       <span className="text-sm text-muted-foreground font-medium">
-        Page {currentPage} of {totalPages}
+        Página {currentPage} de {totalPages}
       </span>
 
       <button

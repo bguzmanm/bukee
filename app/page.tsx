@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useBooks } from "@/hooks/useBooks";
 import { Book, SortConfig, SortDirection } from "@/types";
@@ -17,11 +18,119 @@ import { listen } from "@tauri-apps/api/event";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { useKindle } from "@/hooks/useKindle";
 import { KindleGrid } from "@/components/KindleGrid";
+import { KindleList } from "@/components/KindleList";
 import { KindleBookDetails } from "@/components/KindleBookDetails";
 import { KindleBook, KindleStatusFilter } from "@/types";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { toast } from "sonner";
+import { BookGridSkeleton } from "@/components/ui/skeleton";
+import { ChevronDown, ChevronsUpDown, LucideLibrary } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+function EmptyState({
+  icon,
+  title,
+  hint,
+}: {
+  icon?: ReactNode;
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center">
+      {icon}
+      <p className="font-medium text-foreground">{title}</p>
+      {hint && <p className="text-sm text-muted-foreground max-w-sm">{hint}</p>}
+    </div>
+  );
+}
 
 const ITEMS_PER_PAGE = 8;
+
+const PANEL_MIN = 90;
+const PANEL_MAX = 420;
+const PANEL_DEFAULT = 260;
+
+function useDetailsPanel() {
+  const [height, setHeight] = useState<number>(() => {
+    if (typeof window === "undefined") return PANEL_DEFAULT;
+    const saved = Number(window.localStorage.getItem("bukee-panel-height"));
+    return Number.isFinite(saved) && saved >= PANEL_MIN && saved <= PANEL_MAX
+      ? saved
+      : PANEL_DEFAULT;
+  });
+  const [collapsed, setCollapsed] = useState(false);
+  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem("bukee-panel-height", String(height));
+  }, [height]);
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent) => {
+      dragRef.current = { startY: e.clientY, startH: height };
+      setCollapsed(false);
+      const onMove = (ev: PointerEvent) => {
+        const d = dragRef.current;
+        if (!d) return;
+        const next = d.startH - (ev.clientY - d.startY);
+        setHeight(Math.min(PANEL_MAX, Math.max(PANEL_MIN, next)));
+      };
+      const onUp = () => {
+        dragRef.current = null;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [height],
+  );
+
+  return {
+    height,
+    collapsed,
+    setCollapsed,
+    onPointerDown,
+  };
+}
+
+function PanelResizeHandle({
+  collapsed,
+  onToggle,
+  onPointerDown,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+}) {
+  return (
+    <div className="relative h-5 flex items-center justify-center border-t bg-card flex-none group">
+      <div
+        className="absolute inset-0 cursor-ns-resize"
+        onPointerDown={onPointerDown}
+        title="Arrastra para redimensionar el panel"
+      />
+      <ChevronsUpDown className="absolute left-1/2 -translate-x-1/2 w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+      <button
+        onClick={onToggle}
+        className="relative z-10 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        title={collapsed ? "Mostrar panel de detalles" : "Ocultar panel de detalles"}
+        aria-label={collapsed ? "Mostrar panel de detalles" : "Ocultar panel de detalles"}
+      >
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${collapsed ? "" : "rotate-180"}`}
+        />
+      </button>
+    </div>
+  );
+}
 
 export default function Home() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -32,6 +141,8 @@ export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
+  const [librarySelectionMode, setLibrarySelectionMode] = useState(false);
+  const [selectedBookIds, setSelectedBookIds] = useState<number[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   const [isKindleView, setIsKindleView] = useState(false);
@@ -39,12 +150,34 @@ export default function Home() {
   const [kindleSelectionMode, setKindleSelectionMode] = useState(false);
   const [selectedKindlePaths, setSelectedKindlePaths] = useState<string[]>([]);
   const [kindleStatusFilter, setKindleStatusFilter] = useState<KindleStatusFilter>("todos");
+  const [selectedKindleTag, setSelectedKindleTag] = useState<string | null>(null);
+  const [selectedKindleAuthor, setSelectedKindleAuthor] = useState<string | null>(null);
+  const [kindlePage, setKindlePage] = useState(1);
+  const detailsPanel = useDetailsPanel();
   const kindle = useKindle();
 
   const filteredKindleBooks = useMemo(() => {
-    if (kindleStatusFilter === "todos") return kindle.books;
-    return kindle.books.filter((b) => (b.status ?? "sin_comenzar") === kindleStatusFilter);
-  }, [kindle.books, kindleStatusFilter]);
+    return kindle.books.filter((b) => {
+      if (kindleStatusFilter !== "todos" && (b.status ?? "sin_comenzar") !== kindleStatusFilter) {
+        return false;
+      }
+      if (selectedKindleTag && !(b.tags ?? []).includes(selectedKindleTag)) {
+        return false;
+      }
+      if (selectedKindleAuthor && b.author !== selectedKindleAuthor) {
+        return false;
+      }
+      return true;
+    });
+  }, [kindle.books, kindleStatusFilter, selectedKindleTag, selectedKindleAuthor]);
+
+  const { paginatedKindleBooks, kindleTotalPages } = useMemo(() => {
+    const startIndex = (kindlePage - 1) * ITEMS_PER_PAGE;
+    return {
+      paginatedKindleBooks: filteredKindleBooks.slice(startIndex, startIndex + ITEMS_PER_PAGE),
+      kindleTotalPages: Math.max(1, Math.ceil(filteredKindleBooks.length / ITEMS_PER_PAGE)),
+    };
+  }, [filteredKindleBooks, kindlePage]);
   
   // Pagination & Sorting State
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,12 +192,17 @@ export default function Home() {
     addBook,
     updateBook,
     deleteBook,
+    deleteBooks,
   } = useBooks();
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [search, selectedTag, selectedAuthor, view]);
+
+  useEffect(() => {
+    setKindlePage(1);
+  }, [kindleStatusFilter, selectedKindleTag, selectedKindleAuthor]);
 
   useEffect(() => {
     console.log("Setting up Tauri event listeners...");
@@ -113,8 +251,8 @@ export default function Home() {
             
             const newBook: Book = {
               id: 0, 
-              title: metadata.title || "Untitled",
-              author: metadata.author || "Unknown",
+              title: metadata.title || "Sin título",
+              author: metadata.author || "Desconocido",
               cover: metadata.cover || "",
               tags: metadata.tags || [],
               rating: metadata.rating || 0,
@@ -127,10 +265,10 @@ export default function Home() {
             setIsFormOpen(true);
           } catch (err) {
             console.error("Error parsing EPUB:", err);
-            alert(`Failed to parse EPUB file: ${err}`);
+            toast.error(`No se pudo leer el EPUB: ${err}`);
           }
         } else {
-          alert("Por favor arrastra un archivo .epub válido");
+          toast.error("Por favor arrastra un archivo .epub válido");
         }
       }
     }).then(fn => { unlistenDragDrop = fn; }).catch(console.error);
@@ -229,7 +367,12 @@ export default function Home() {
   };
 
   const handleDelete = async (id: number) => {
-    await deleteBook(id);
+    const ok = await deleteBook(id);
+    if (ok) {
+      toast.success("Libro eliminado");
+    } else {
+      toast.error("No se pudo eliminar el libro");
+    }
     if (selectedBook?.id === id) {
       setSelectedBook(null);
     }
@@ -237,10 +380,53 @@ export default function Home() {
 
   const handleKindleDelete = async (book: KindleBook) => {
     const ok = await kindle.removeBook(book.path);
+    if (ok) {
+      toast.success("Libro eliminado del Kindle");
+    } else {
+      toast.error("No se pudo eliminar el libro (¿archivo protegido o en uso?)");
+    }
     if (ok && selectedKindleBook?.path === book.path) {
       setSelectedKindleBook(null);
     }
     return ok;
+  };
+
+  const toggleLibrarySelect = (book: Book) => {
+    setSelectedBookIds((prev) =>
+      prev.includes(book.id)
+        ? prev.filter((id) => id !== book.id)
+        : [...prev, book.id],
+    );
+  };
+
+  const toggleSelectAllLibrary = () => {
+    const all = paginatedBooks.map((b) => b.id);
+    setSelectedBookIds((prev) => {
+      const uniqueAll = all.filter((id) => !prev.includes(id));
+      return all.every((id) => prev.includes(id)) ? [] : [...prev, ...uniqueAll];
+    });
+  };
+
+  const handleLibraryBulkDelete = async () => {
+    const n = selectedBookIds.length;
+    if (n === 0) return;
+    const ok = await ask(
+      `Estás seguro de eliminar ${n} ${n === 1 ? "libro" : "libros"} de tu biblioteca?\nEsta acción no se puede deshacer.`,
+      { title: "Bukee", kind: "warning" },
+    );
+    if (!ok) return;
+
+    const deletedIds = new Set(selectedBookIds);
+    const okDelete = await deleteBooks(selectedBookIds);
+    if (okDelete) {
+      toast.success(n === 1 ? "Se eliminó 1 libro" : `Se eliminaron ${n} libros`);
+    } else {
+      toast.error("No se pudieron eliminar los libros seleccionados");
+    }
+    if (selectedBook && deletedIds.has(selectedBook.id)) {
+      setSelectedBook(null);
+    }
+    setSelectedBookIds([]);
   };
 
   const toggleKindleSelect = (book: KindleBook) => {
@@ -268,8 +454,23 @@ export default function Home() {
     if (!ok) return;
 
     const attempted = new Set(selectedKindlePaths);
-    const { failed } = await kindle.removeBooks(selectedKindlePaths);
+    const { removed, failed } = await kindle.removeBooks(selectedKindlePaths);
     const failedSet = new Set(failed);
+
+    if (removed > 0) {
+      toast.success(
+        removed === 1
+          ? "Se eliminó 1 libro del Kindle"
+          : `Se eliminaron ${removed} libros del Kindle`,
+      );
+    }
+    if (failedSet.size > 0) {
+      toast.error(
+        failedSet.size === 1
+          ? "No se pudo eliminar 1 archivo (¿está protegido o en uso?)"
+          : `No se pudieron eliminar ${failedSet.size} archivos`,
+      );
+    }
 
     if (
       selectedKindleBook &&
@@ -285,24 +486,26 @@ export default function Home() {
   };
 
   const handleFormSubmit = async (data: Book | Omit<Book, "id">) => {
+    let ok: boolean;
     if ("id" in data) {
-      await updateBook(data as Book);
+      ok = await updateBook(data as Book);
       if (selectedBook?.id === data.id) {
         setSelectedBook(data as Book);
       }
     } else {
-      await addBook(data);
+      ok = await addBook(data);
     }
     setIsFormOpen(false);
+    if (ok) {
+      toast.success("id" in data ? "Libro actualizado" : "Libro añadido");
+    } else {
+      toast.error("No se pudo guardar el libro");
+    }
   };
 
   return (
     <main className="h-screen m-0 relative bg-background text-foreground">
       <DragDropOverlay isDragging={isDragging} />
-
-      <div className="absolute top-4 right-4 z-10">
-        <ModeToggle />
-      </div>
 
       <AnimatePresence>
         {isFormOpen && (
@@ -321,20 +524,14 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <div
-        className="grid h-full transition-all duration-300"
-        style={{
-          gridTemplateColumns: "auto 1fr",
-          gridTemplateRows: "60px 1fr 260px",
-        }}
-      >
-        <header className="col-span-2 flex items-center gap-3 px-4 bg-card border-b">
+      <div className="flex h-full flex-col transition-all duration-300">
+        <header className="flex-none flex items-center gap-3 px-4 bg-card border-b">
           <div className="flex items-center gap-2">
             <button
               onClick={handleCreate}
               className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md text-sm"
             >
-              Add Book
+              Añadir libro
             </button>
           </div>
 
@@ -347,7 +544,7 @@ export default function Home() {
               }`}
               onClick={() => setView("grid")}
             >
-              Grid
+              Cuadrícula
             </button>
             <button
               className={`px-3 py-1.5 rounded-full text-sm border-2 transition-colors ${
@@ -357,39 +554,56 @@ export default function Home() {
               }`}
               onClick={() => setView("list")}
             >
-              List
+              Lista
             </button>
+            <div className="w-px bg-border mx-1" />
+            <ModeToggle />
           </div>
 
           <input
             type="text"
-            placeholder="Search..."
-            className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border focus:ring-2 focus:ring-primary/20 transition-all"
+            placeholder="Buscar..."
+            className="ml-4 w-72 px-3 py-1.5 rounded-md text-sm bg-input border transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </header>
 
+        <div className="flex flex-1 min-h-0">
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          tags={tags}
-          authors={authors}
-          selectedTag={selectedTag}
-          selectedAuthor={selectedAuthor}
-          onSelectTag={setSelectedTag}
-          onSelectAuthor={setSelectedAuthor}
+          tags={isKindleView ? kindle.kindleTags : tags}
+          authors={isKindleView ? kindle.kindleAuthors : authors}
+          selectedTag={isKindleView ? selectedKindleTag : selectedTag}
+          selectedAuthor={isKindleView ? selectedKindleAuthor : selectedAuthor}
+          onSelectTag={(tag) => {
+            if (isKindleView) setSelectedKindleTag(tag);
+            else setSelectedTag(tag);
+          }}
+          onSelectAuthor={(author) => {
+            if (isKindleView) setSelectedKindleAuthor(author);
+            else setSelectedAuthor(author);
+          }}
           kindleConnected={kindle.connected}
+          kindleCount={kindle.books.length}
+          libraryCount={books.length}
           activeView={isKindleView ? "kindle" : "library"}
-          onSelectLibrary={() => setIsKindleView(false)}
+          onSelectLibrary={() => {
+            setSelectedTag(null);
+            setSelectedAuthor(null);
+            setIsKindleView(false);
+          }}
           onSelectKindle={() => {
             setSelectedBook(null);
             setSelectedKindleBook(null);
+            setSelectedKindleTag(null);
+            setSelectedKindleAuthor(null);
             setIsKindleView(true);
           }}
         />
 
-        <main className="relative flex flex-col min-h-0 overflow-hidden">
+        <main className="relative flex flex-1 flex-col min-h-0 overflow-hidden">
           {isKindleView && (
             <div className="flex items-center gap-2 px-4 py-2 border-b bg-card flex-none">
               <button
@@ -406,16 +620,20 @@ export default function Home() {
                   >
                     {kindleSelectionMode ? "Cancelar selección" : "Seleccionar"}
                   </button>
-                  <select
+                  <Select
                     value={kindleStatusFilter}
-                    onChange={(e) => setKindleStatusFilter(e.target.value as KindleStatusFilter)}
-                    className="px-2 py-1.5 rounded-md text-sm border bg-background"
+                    onValueChange={(v) => setKindleStatusFilter(v as KindleStatusFilter)}
                   >
-                    <option value="todos">Todos</option>
-                    <option value="en_curso">En curso</option>
-                    <option value="leido">Leídos</option>
-                    <option value="sin_comenzar">Sin comenzar</option>
-                  </select>
+                    <SelectTrigger className="w-[180px] h-9">
+                      <SelectValue placeholder="Filtrar por estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="en_curso">En curso</SelectItem>
+                      <SelectItem value="leido">Leídos</SelectItem>
+                      <SelectItem value="sin_comenzar">Sin comenzar</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {kindleSelectionMode && (
                     <>
                       <span className="text-sm text-muted-foreground">
@@ -444,29 +662,114 @@ export default function Home() {
                   )}
             </div>
           )}
+          {!isKindleView && (
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-card flex-none">
+              <button
+                onClick={() => {
+                  setLibrarySelectionMode((v) => !v);
+                  setSelectedBookIds([]);
+                  setSelectedBook(null);
+                }}
+                className={`px-3 py-1.5 rounded-md text-sm border-2 transition-colors ${
+                  librarySelectionMode
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+                }`}
+              >
+                {librarySelectionMode ? "Cancelar selección" : "Seleccionar"}
+              </button>
+              {librarySelectionMode && (
+                <>
+                  <span className="text-sm text-muted-foreground">
+                    {selectedBookIds.length}{" "}
+                    {selectedBookIds.length === 1
+                      ? "libro seleccionado"
+                      : "libros seleccionados"}
+                  </span>
+                  <button
+                    onClick={toggleSelectAllLibrary}
+                    className="px-3 py-1.5 rounded-md text-sm border-2 border-transparent text-muted-foreground hover:bg-muted/80"
+                  >
+                    {paginatedBooks.length > 0 &&
+                    selectedBookIds.length === paginatedBooks.length
+                      ? "Ninguno"
+                      : "Todos"}
+                  </button>
+                  <button
+                    onClick={handleLibraryBulkDelete}
+                    disabled={selectedBookIds.length === 0}
+                    className="px-3 py-1.5 rounded-md text-sm border border-destructive text-destructive hover:bg-destructive/10 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
+                  >
+                    Eliminar seleccionados ({selectedBookIds.length})
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto p-0">
             {isKindleView ? (
               <>
-                {kindle.loading && <p className="p-6">Cargando libros del Kindle...</p>}
-                {kindle.error && <p className="p-6 text-destructive">{kindle.error}</p>}
-                {!kindle.loading && !kindle.error && (
-                  <KindleGrid
-                    books={filteredKindleBooks}
-                    selected={selectedKindleBook}
-                    onSelect={setSelectedKindleBook}
-                    selectionMode={kindleSelectionMode}
-                    selectedPaths={selectedKindlePaths}
-                    onToggleSelect={toggleKindleSelect}
-                  />
+                {kindle.loading && <BookGridSkeleton count={8} />}
+                {kindle.error && (
+                  <div className="p-6 text-destructive">
+                    <p>No se pudo cargar el contenido del Kindle</p>
+                    <p className="text-sm text-muted-foreground">{kindle.error}</p>
+                  </div>
+                )}
+                {!kindle.loading &&
+                  !kindle.error &&
+                  filteredKindleBooks.length === 0 && (
+                    <EmptyState
+                      title="No hay libros que coincidan con este filtro"
+                      hint={kindleStatusFilter === "todos" ? "Conecta un Kindle para ver tus libros" : "Prueba con otro filtro de estado"}
+                    />
+                  )}
+                {!kindle.loading && !kindle.error && filteredKindleBooks.length > 0 && (
+                  view === "grid" ? (
+                    <KindleGrid
+                      books={paginatedKindleBooks}
+                      selected={selectedKindleBook}
+                      onSelect={setSelectedKindleBook}
+                      selectionMode={kindleSelectionMode}
+                      selectedPaths={selectedKindlePaths}
+                      onToggleSelect={toggleKindleSelect}
+                    />
+                  ) : (
+                    <KindleList
+                      books={paginatedKindleBooks}
+                      selected={selectedKindleBook}
+                      onSelect={setSelectedKindleBook}
+                      selectionMode={kindleSelectionMode}
+                      selectedPaths={selectedKindlePaths}
+                      onToggleSelect={toggleKindleSelect}
+                    />
+                  )
                 )}
               </>
             ) : (
               <>
-                {loading && <p className="p-6">Loading books...</p>}
+                {loading && (
+                  <div>
+                    <BookGridSkeleton count={8} />
+                  </div>
+                )}
                 {error && <p className="p-6 text-destructive">{error}</p>}
-                {!loading && !error && (
+                {!loading && !error && books.length === 0 && (
+                  <EmptyState
+                    icon={<LucideLibrary className="w-10 h-10 text-muted-foreground/40" />}
+                    title="Tu biblioteca está vacía"
+                    hint="Añade tu primer libro con el botón «Añadir libro» o arrastrando un archivo EPUB a esta ventana."
+                  />
+                )}
+                {!loading && !error && books.length > 0 && (
                   <AnimatePresence mode="wait">
-                    {view === "grid" ? (
+                    {sortedBooks.length === 0 ? (
+                      <EmptyState
+                        key="no-results"
+                        title="Sin resultados"
+                        hint="No hay libros que coincidan con tu búsqueda o filtros actuales."
+                      />
+                    ) : view === "grid" ? (
                       <motion.div
                         key="grid"
                         initial={{ opacity: 0, x: -20 }}
@@ -474,7 +777,13 @@ export default function Home() {
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <BookGrid books={paginatedBooks} onSelect={setSelectedBook} />
+                        <BookGrid
+                          books={paginatedBooks}
+                          onSelect={setSelectedBook}
+                          selectionMode={librarySelectionMode}
+                          selectedIds={selectedBookIds}
+                          onToggleSelect={toggleLibrarySelect}
+                        />
                       </motion.div>
                     ) : (
                       <motion.div
@@ -489,6 +798,9 @@ export default function Home() {
                           onSelect={setSelectedBook}
                           sortConfig={sortConfig}
                           onSort={handleSort}
+                          selectionMode={librarySelectionMode}
+                          selectedIds={selectedBookIds}
+                          onToggleSelect={toggleLibrarySelect}
                         />
                       </motion.div>
                     )}
@@ -498,28 +810,50 @@ export default function Home() {
             )}
           </div>
 
-          {!isKindleView && !loading && !error && (
+          {!isKindleView ? (
              <Pagination 
                currentPage={currentPage}
                totalPages={totalPages}
                onPageChange={setCurrentPage}
              />
+          ) : (
+            filteredKindleBooks.length > ITEMS_PER_PAGE && (
+              <Pagination
+                currentPage={kindlePage}
+                totalPages={kindleTotalPages}
+                onPageChange={setKindlePage}
+              />
+            )
           )}
         </main>
+        </div>
 
-        {isKindleView ? (
-          <KindleBookDetails
-            book={selectedKindleBook}
-            onDelete={handleKindleDelete}
+        <div
+          className="flex-none flex flex-col min-h-0 overflow-hidden"
+          style={{ height: detailsPanel.collapsed ? 20 : detailsPanel.height }}
+        >
+          <PanelResizeHandle
+            collapsed={detailsPanel.collapsed}
+            onToggle={() => detailsPanel.setCollapsed((v) => !v)}
+            onPointerDown={detailsPanel.onPointerDown}
           />
-        ) : (
-          <BookDetails
-            book={selectedBook}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onKindleSent={kindle.refreshBooks}
-          />
-        )}
+          <div className="flex-1 min-h-0">
+            {isKindleView ? (
+              <KindleBookDetails
+                book={selectedKindleBook}
+                onDelete={handleKindleDelete}
+                onSaveMeta={kindle.saveMeta}
+              />
+            ) : (
+              <BookDetails
+                book={selectedBook}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onKindleSent={kindle.refreshBooks}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );

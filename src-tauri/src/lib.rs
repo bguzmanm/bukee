@@ -204,6 +204,7 @@ struct KindleBook {
 // comprimido pueden acabar por debajo del umbral y viceversa).
 fn kindle_progress(kindle: &std::path::Path, book: &std::path::Path) -> (String, Option<u64>, Option<u64>, Option<u8>) {
     const FINISHED_RATIO: f64 = 0.8;
+const STARTED_MIN_PCT: u8 = 3;
     let documents = kindle.join("documents");
     let fname = book.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let stem = match fname.rfind('.') {
@@ -305,6 +306,7 @@ fn kindle_progress(kindle: &std::path::Path, book: &std::path::Path) -> (String,
     let status = match (position, progress) {
         (None, _) => "sin_comenzar".to_string(),
         (Some(_), Some(p)) if p >= ((FINISHED_RATIO * 100.0) as u8) => "leido".to_string(),
+        (Some(_), Some(p)) if p < STARTED_MIN_PCT => "sin_comenzar".to_string(),
         (Some(_), _) => "en_curso".to_string(),
     };
     (status, position, last_read, progress)
@@ -646,7 +648,13 @@ pub fn run() {
             description: "create_initial_tables",
             sql: "CREATE TABLE books (id INTEGER PRIMARY KEY, title TEXT, author TEXT, cover TEXT, tags TEXT, rating INTEGER, path TEXT, description TEXT, identifier TEXT);",
             kind: MigrationKind::Up,
-        }
+        },
+        Migration {
+            version: 2,
+            description: "create_kindle_meta",
+            sql: "CREATE TABLE kindle_meta (path TEXT PRIMARY KEY, tags TEXT, author TEXT);",
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()
@@ -657,6 +665,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
